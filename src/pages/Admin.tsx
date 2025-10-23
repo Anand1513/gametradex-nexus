@@ -8,80 +8,123 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Shield, Users, DollarSign, FileText, LogOut } from 'lucide-react';
+import { Shield, Users, DollarSign, FileText, LogOut, Search, Filter, Download, Edit } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { listingsService, escrowsService, usersService, bidsService, supportService } from '@/services/firestore';
 import { toast } from 'sonner';
 import LegalDisclaimer from '@/components/LegalDisclaimer';
+import EditPriceModal from '@/components/EditPriceModal';
 
 const Admin: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [adminKey, setAdminKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
-
-  // Mock data
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [isEditPriceModalOpen, setIsEditPriceModalOpen] = useState(false);
+  const [selectedListing, setSelectedListing] = useState<any>(null);
+  
+  // Dummy data
   const [listings, setListings] = useState([
-    { id: '1', title: 'Conqueror Account', seller: 'user1', status: 'pending', createdAt: '2025-01-15' },
-    { id: '2', title: 'Ace Account', seller: 'user2', status: 'verified', createdAt: '2025-01-14' },
-    { id: '3', title: 'Crown Account', seller: 'user3', status: 'rejected', createdAt: '2025-01-13' }
+    { 
+      id: '1', 
+      title: 'Conqueror Account - 4.2 KD', 
+      sellerId: 'seller-123', 
+      status: 'open', 
+      verified: true, 
+      priceMin: 25000, 
+      priceMax: 35000, 
+      isFixed: false,
+      negotiable: true,
+      pendingPrice: false,
+      createdAt: { toDate: () => new Date() } 
+    },
+    { 
+      id: '2', 
+      title: 'Ace Master Account - 3.8 KD', 
+      sellerId: 'seller-123', 
+      status: 'bidding', 
+      verified: false, 
+      priceMin: 15000, 
+      priceMax: 22000, 
+      isFixed: false,
+      negotiable: true,
+      pendingPrice: false,
+      createdAt: { toDate: () => new Date() } 
+    },
+    { 
+      id: '3', 
+      title: 'Crown Account - 2.5 KD', 
+      sellerId: 'seller-456', 
+      status: 'sold', 
+      verified: true, 
+      priceMin: 8000, 
+      priceMax: 12000, 
+      isFixed: false,
+      negotiable: true,
+      pendingPrice: false,
+      createdAt: { toDate: () => new Date() } 
+    },
+    { 
+      id: '4', 
+      title: 'Platinum Account - 1.8 KD', 
+      sellerId: 'seller-789', 
+      status: 'open', 
+      verified: false, 
+      pendingPrice: true,
+      createdAt: { toDate: () => new Date() } 
+    }
   ]);
-
+  
   const [escrows, setEscrows] = useState([
-    { id: '1', buyer: 'buyer1', seller: 'seller1', amount: 25000, status: 'pending', createdAt: '2025-01-15' },
-    { id: '2', buyer: 'buyer2', seller: 'seller2', amount: 18000, status: 'held', createdAt: '2025-01-14' },
-    { id: '3', buyer: 'buyer3', seller: 'seller3', amount: 12000, status: 'released', createdAt: '2025-01-13' }
+    { id: '1', buyerId: 'buyer-123', sellerId: 'seller-123', amount: 30000, status: 'pending', createdAt: { toDate: () => new Date() } },
+    { id: '2', buyerId: 'buyer-456', sellerId: 'seller-456', amount: 18000, status: 'released', createdAt: { toDate: () => new Date() } },
+    { id: '3', buyerId: 'buyer-789', sellerId: 'seller-789', amount: 12000, status: 'refunded', createdAt: { toDate: () => new Date() } }
   ]);
-
+  
   const [users, setUsers] = useState([
-    { id: '1', name: 'John Doe', email: 'john@example.com', role: 'user', status: 'active' },
-    { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'user', status: 'active' },
-    { id: '3', name: 'Admin User', email: 'admin@example.com', role: 'admin', status: 'active' }
+    { id: 'admin-123', name: 'Admin User', email: 'admin@gametradex.com', role: 'admin' },
+    { id: 'seller-123', name: 'John Seller', email: 'seller@gametradex.com', role: 'seller' },
+    { id: 'buyer-123', name: 'Jane Buyer', email: 'buyer@gametradex.com', role: 'buyer' }
+  ]);
+  
+  const [bids, setBids] = useState([
+    { id: '1', listingId: '2', bidderId: 'buyer-123', bidAmount: 18000, status: 'active', timestamp: { toDate: () => new Date() } },
+    { id: '2', listingId: '2', bidderId: 'buyer-456', bidAmount: 20000, status: 'active', timestamp: { toDate: () => new Date() } }
+  ]);
+  
+  const [supportMessages, setSupportMessages] = useState([
+    { id: '1', name: 'Test User', email: 'test@example.com', message: 'I have a question about account verification', status: 'pending', createdAt: { toDate: () => new Date() } }
   ]);
 
-  useEffect(() => {
-    // Check if already authenticated
-    const adminAuth = localStorage.getItem('adminAuth');
-    if (adminAuth === 'true') {
-      setIsAuthenticated(true);
-    }
-  }, []);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Check admin key (in production, this would be server-side)
-      if (adminKey === 'gtx_admin_2025') {
-        localStorage.setItem('adminAuth', 'true');
-        setIsAuthenticated(true);
-        toast.success('Admin access granted');
-      } else {
-        toast.error('Invalid admin key');
-      }
-    } catch (error) {
-      toast.error('Login failed');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('adminAuth');
-    setIsAuthenticated(false);
-    setAdminKey('');
-    toast.success('Logged out successfully');
-  };
+  // Data is already loaded with dummy data
 
   const handleListingAction = (id: string, action: 'approve' | 'reject') => {
     setListings(prev => prev.map(listing => 
       listing.id === id 
-        ? { ...listing, status: action === 'approve' ? 'verified' : 'rejected' }
+        ? { ...listing, status: action === 'approve' ? 'open' : 'sold', verified: action === 'approve' }
         : listing
     ));
     toast.success(`Listing ${action}d successfully`);
+  };
+  
+  const handleEditPrice = (listing: any) => {
+    setSelectedListing(listing);
+    setIsEditPriceModalOpen(true);
+  };
+  
+  const handlePriceUpdate = (data: any) => {
+    setListings(prev => prev.map(listing => 
+      listing.id === data.id 
+        ? { 
+            ...listing, 
+            priceMin: data.priceMin,
+            priceMax: data.priceMax,
+            isFixed: data.isFixed,
+            negotiable: data.negotiable,
+            pendingPrice: false
+          }
+        : listing
+    ));
+    toast.success("Price updated successfully");
   };
 
   const handleEscrowAction = (id: string, action: 'release' | 'refund') => {
@@ -90,61 +133,30 @@ const Admin: React.FC = () => {
         ? { ...escrow, status: action === 'release' ? 'released' : 'refunded' }
         : escrow
     ));
-    toast.success(`Escrow ${action}d successfully`);
+    toast.success(`Payment ${action}d successfully`);
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center space-x-2 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center font-bold text-lg">
-                GT
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                GameTradeX
-              </span>
-            </div>
-            <h1 className="text-3xl font-bold mb-2">Admin Access</h1>
-            <p className="text-muted-foreground">Enter admin key to continue</p>
-          </div>
+  const handleUserRoleUpdate = (userId: string, newRole: 'admin' | 'seller' | 'buyer') => {
+    setUsers(prev => prev.map(user => 
+      user.id === userId 
+        ? { ...user, role: newRole }
+        : user
+    ));
+    toast.success('User role updated successfully');
+  };
 
-          <Card className="card-glow">
-            <CardHeader>
-              <CardTitle className="text-center flex items-center justify-center">
-                <Shield className="w-5 h-5 mr-2 text-primary" />
-                Admin Login
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="adminKey">Admin Key</Label>
-                  <Input
-                    id="adminKey"
-                    type="password"
-                    value={adminKey}
-                    onChange={(e) => setAdminKey(e.target.value)}
-                    placeholder="Enter admin key"
-                    required
-                  />
-                </div>
-
-                <Button 
-                  type="submit" 
-                  className="w-full btn-primary" 
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Authenticating...' : 'Access Admin Panel'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+  // Admin page is now accessible without authentication
+  const { logout } = useAuth();
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // Redirect is handled in the logout function
+    } catch (error) {
+      console.error('Logout failed:', error);
+      toast.error('Logout failed');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -180,8 +192,10 @@ const Admin: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <DollarSign className="w-8 h-8 text-primary" />
                 <div>
-                  <p className="text-2xl font-bold">{escrows.length}</p>
-                  <p className="text-sm text-muted-foreground">Active Escrows</p>
+                  <p className="text-2xl font-bold">
+                    ₹{escrows.reduce((sum, escrow) => sum + (escrow.amount || 0), 0).toLocaleString()}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Total Volume</p>
                 </div>
               </div>
             </CardContent>
@@ -204,8 +218,10 @@ const Admin: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <Shield className="w-8 h-8 text-primary" />
                 <div>
-                  <p className="text-2xl font-bold">98%</p>
-                  <p className="text-sm text-muted-foreground">Success Rate</p>
+                  <p className="text-2xl font-bold">
+                    {listings.filter(l => l.verified).length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Verified Listings</p>
                 </div>
               </div>
             </CardContent>
@@ -235,6 +251,7 @@ const Admin: React.FC = () => {
                       <TableHead>Title</TableHead>
                       <TableHead>Seller</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Price</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -242,31 +259,45 @@ const Admin: React.FC = () => {
                   <TableBody>
                     {listings.map((listing) => (
                       <TableRow key={listing.id}>
-                        <TableCell>{listing.id}</TableCell>
+                        <TableCell className="font-mono text-xs">{listing.id?.slice(0, 8)}...</TableCell>
                         <TableCell>{listing.title}</TableCell>
-                        <TableCell>{listing.seller}</TableCell>
+                        <TableCell className="font-mono text-xs">{listing.sellerId?.slice(0, 8)}...</TableCell>
                         <TableCell>
                           <Badge 
                             className={
-                              listing.status === 'verified' ? 'bg-green-500/20 text-green-500' :
-                              listing.status === 'rejected' ? 'bg-red-500/20 text-red-500' :
+                              listing.status === 'open' ? 'bg-green-500/20 text-green-500' :
+                              listing.status === 'sold' ? 'bg-red-500/20 text-red-500' :
                               'bg-yellow-500/20 text-yellow-500'
                             }
                           >
                             {listing.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>{listing.createdAt}</TableCell>
+                        <TableCell>
+                          {listing.pendingPrice ? (
+                            <span className="text-amber-500 font-medium">Pending Price</span>
+                          ) : listing.isFixed ? (
+                            <span>₹{listing.priceMin?.toLocaleString()}</span>
+                          ) : (
+                            <span>₹{listing.priceMin?.toLocaleString()} - ₹{listing.priceMax?.toLocaleString()}</span>
+                          )}
+                          {!listing.pendingPrice && listing.negotiable && (
+                            <span className="ml-2 text-xs text-gray-500">(Negotiable)</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {listing.createdAt?.toDate?.()?.toLocaleDateString() || 'N/A'}
+                        </TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
-                            {listing.status === 'pending' && (
+                            {listing.status === 'open' && !listing.verified && (
                               <>
                                 <Button 
                                   size="sm" 
                                   onClick={() => handleListingAction(listing.id, 'approve')}
                                   className="bg-green-500 hover:bg-green-600"
                                 >
-                                  Approve
+                                  Verify
                                 </Button>
                                 <Button 
                                   size="sm" 
@@ -277,6 +308,16 @@ const Admin: React.FC = () => {
                                 </Button>
                               </>
                             )}
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleEditPrice(listing)}
+                              className="flex items-center"
+                            >
+                              <Edit className="w-3 h-3 mr-1" />
+                              {listing.pendingPrice ? "Set Price" : "Edit Price"}
+                            </Button>
+                            <Button size="sm" variant="outline">View</Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -309,10 +350,10 @@ const Admin: React.FC = () => {
                   <TableBody>
                     {escrows.map((escrow) => (
                       <TableRow key={escrow.id}>
-                        <TableCell>{escrow.id}</TableCell>
-                        <TableCell>{escrow.buyer}</TableCell>
-                        <TableCell>{escrow.seller}</TableCell>
-                        <TableCell>₹{escrow.amount.toLocaleString()}</TableCell>
+                        <TableCell className="font-mono text-xs">{escrow.id?.slice(0, 8)}...</TableCell>
+                        <TableCell className="font-mono text-xs">{escrow.buyerId?.slice(0, 8)}...</TableCell>
+                        <TableCell className="font-mono text-xs">{escrow.sellerId?.slice(0, 8)}...</TableCell>
+                        <TableCell>₹{escrow.amount?.toLocaleString() || 0}</TableCell>
                         <TableCell>
                           <Badge 
                             className={
@@ -324,10 +365,12 @@ const Admin: React.FC = () => {
                             {escrow.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>{escrow.createdAt}</TableCell>
+                        <TableCell>
+                          {escrow.createdAt?.toDate?.()?.toLocaleDateString() || 'N/A'}
+                        </TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
-                            {escrow.status === 'held' && (
+                            {escrow.status === 'pending' && (
                               <>
                                 <Button 
                                   size="sm" 
@@ -376,29 +419,37 @@ const Admin: React.FC = () => {
                   <TableBody>
                     {users.map((user) => (
                       <TableRow key={user.id}>
-                        <TableCell>{user.id}</TableCell>
+                        <TableCell className="font-mono text-xs">{user.id?.slice(0, 8)}...</TableCell>
                         <TableCell>{user.name}</TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
                           <Badge 
-                            className={user.role === 'admin' ? 'bg-primary/20 text-primary' : 'bg-muted/20 text-muted-foreground'}
+                            className={
+                              user.role === 'admin' ? 'bg-primary/20 text-primary' : 
+                              user.role === 'seller' ? 'bg-blue-500/20 text-blue-500' :
+                              'bg-muted/20 text-muted-foreground'
+                            }
                           >
                             {user.role}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge className="bg-green-500/20 text-green-500">
-                            {user.status}
+                            Active
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
-                            <Button size="sm" variant="outline">
-                              Ban
-                            </Button>
-                            <Button size="sm" variant="outline">
-                              Promote
-                            </Button>
+                            <Select onValueChange={(value) => handleUserRoleUpdate(user.id, value as any)}>
+                              <SelectTrigger className="w-24">
+                                <SelectValue placeholder="Role" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="buyer">Buyer</SelectItem>
+                                <SelectItem value="seller">Seller</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -446,6 +497,16 @@ const Admin: React.FC = () => {
           <LegalDisclaimer />
         </div>
       </div>
+      
+      {/* Edit Price Modal */}
+      {selectedListing && (
+        <EditPriceModal
+          isOpen={isEditPriceModalOpen}
+          onClose={() => setIsEditPriceModalOpen(false)}
+          onSubmit={handlePriceUpdate}
+          listing={selectedListing}
+        />
+      )}
     </div>
   );
 };

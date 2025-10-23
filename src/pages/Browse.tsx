@@ -7,9 +7,10 @@ import ListingCard from "@/components/ListingCard";
 import VerifiedTag from "@/components/VerifiedTag";
 import LegalDisclaimer from "@/components/LegalDisclaimer";
 import BuyNowModal from "@/components/BuyNowModal";
-import { Search, ShoppingCart } from "lucide-react";
-import { mockListings } from "@/data/mockData";
+import { Search, ShoppingCart, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { mockListings } from "@/data/mockData";
+import toast from "react-hot-toast";
 
 const Browse = () => {
   const [priceRange, setPriceRange] = useState<string>("all");
@@ -23,10 +24,11 @@ const Browse = () => {
 
   const [filteredListings, setFilteredListings] = useState(mockListings);
 
+  // Filter and sort listings
   useEffect(() => {
     let filtered = mockListings.filter(listing => {
       const matchesTier = tier === "all" || listing.tier.toLowerCase() === tier.toLowerCase();
-      const matchesPlatform = platform === "all" || listing.game.toLowerCase() === platform.toLowerCase();
+      const matchesPlatform = platform === "all" || listing.game?.toLowerCase() === platform.toLowerCase();
       const matchesSearch = searchQuery === "" || 
         listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         listing.tier.toLowerCase().includes(searchQuery.toLowerCase());
@@ -55,8 +57,13 @@ const Browse = () => {
   }, [tier, platform, priceRange, searchQuery, sortBy]);
 
   const handleBuyNow = (listing: any) => {
-    setSelectedListing(listing);
-    setIsBuyModalOpen(true);
+    toast.error('Please log in to buy accounts');
+    return;
+  };
+
+  const handlePlaceBid = (listing: any) => {
+    toast.error('Please log in to place bids');
+    return;
   };
 
   const handleBuySubmit = (buyData: { amount: number; paymentMethod: string }) => {
@@ -192,7 +199,13 @@ const Browse = () => {
                 <p>{listing.game} • {listing.tier} • KD: {listing.kd}</p>
                 <p>Level: {listing.level}</p>
                 <p className="font-semibold text-primary">
-                  ₹{listing.priceRange[0].toLocaleString()} – ₹{listing.priceRange[1].toLocaleString()}
+                  {listing.pendingPrice ? (
+                    <span className="text-amber-500">Pending Price</span>
+                  ) : listing.isFixed ? (
+                    <>₹{listing.priceFixed?.toLocaleString()}{listing.negotiable && " (Negotiable)"}</>
+                  ) : (
+                    <>₹{listing.priceRange[0].toLocaleString()} – ₹{listing.priceRange[1].toLocaleString()}{listing.negotiable && " (Negotiable)"}</>
+                  )}
                 </p>
               </div>
               <div className="space-y-2">
@@ -210,6 +223,16 @@ const Browse = () => {
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Buy Now
                 </Button>
+                {listing.status === 'bidding' && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full border-primary/50 text-primary hover:bg-primary/10"
+                    onClick={() => handlePlaceBid(listing)}
+                  >
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Place Bid
+                  </Button>
+                )}
               </div>
             </div>
           ))}

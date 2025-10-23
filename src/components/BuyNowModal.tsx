@@ -7,16 +7,20 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Shield, CreditCard, AlertTriangle } from 'lucide-react';
 import ConsentCheckbox from './ConsentCheckbox';
-import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { escrowsService } from '@/services/firestore';
+import toast from 'react-hot-toast';
 
 interface BuyNowModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (buyData: { amount: number; paymentMethod: string }) => void;
+  onSubmit?: (buyData: { amount: number; paymentMethod: string }) => void;
   listing: {
+    id: string;
     title: string;
     priceRange: [number, number];
     currentBid?: number;
+    sellerId: string;
   };
 }
 
@@ -26,6 +30,7 @@ const BuyNowModal: React.FC<BuyNowModalProps> = ({
   onSubmit,
   listing
 }) => {
+  const { user } = useAuth();
   const [amount, setAmount] = useState(listing.currentBid || listing.priceRange[1]);
   const [paymentMethod, setPaymentMethod] = useState('upi');
   const [consent1, setConsent1] = useState(false);
@@ -40,6 +45,11 @@ const BuyNowModal: React.FC<BuyNowModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!user) {
+      toast.error('Please log in to continue');
+      return;
+    }
+    
     if (!consent1 || !consent2) {
       toast.error('Please agree to all terms before proceeding');
       return;
@@ -48,13 +58,22 @@ const BuyNowModal: React.FC<BuyNowModalProps> = ({
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      onSubmit({
-        amount,
-        paymentMethod
+      // Create escrow in Firestore
+      await escrowsService.create({
+        buyerId: user.uid,
+        sellerId: listing.sellerId,
+        listingId: listing.id,
+        amount: totalAmount,
+        paymentMethod,
+        status: 'pending'
       });
+      
+      if (onSubmit) {
+        onSubmit({
+          amount: totalAmount,
+          paymentMethod
+        });
+      }
       
       toast.success('Escrow created successfully! Payment is now held securely.');
       onClose();

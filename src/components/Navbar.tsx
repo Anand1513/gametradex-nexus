@@ -1,25 +1,15 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, User, LogOut } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Menu, X, User } from "lucide-react";
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import ProfileMenu from "@/components/ProfileMenu";
 
 const Navbar = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
-
-  useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    setUser(null);
-    window.location.href = '/';
-  };
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const { user, userData, logout } = useAuth();
 
   const navLinks = [
     { to: "/", label: "Home" },
@@ -62,13 +52,7 @@ const Navbar = () => {
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center space-x-2">
             {user ? (
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-muted-foreground">Welcome, {user.name}</span>
-                <Button variant="outline" size="sm" onClick={handleLogout}>
-                  <LogOut className="w-4 h-4 mr-1" />
-                  Logout
-                </Button>
-              </div>
+              <ProfileMenu />
             ) : (
               <div className="flex items-center space-x-2">
                 <Link to="/login">
@@ -87,31 +71,72 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <button
-            className="md:hidden p-2 text-foreground"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          <div className="md:hidden">
+            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </Button>
+          </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-border animate-fade-in">
+          <div className="md:hidden py-4 border-t border-border">
             <div className="flex flex-col space-y-2">
               {navLinks.map((link) => (
-                <Link key={link.to} to={link.to} onClick={() => setMobileMenuOpen(false)}>
+                <Link 
+                  key={link.to} 
+                  to={link.to}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
                   <Button
                     variant="ghost"
-                    className={`w-full justify-start ${
-                      isActive(link.to) ? "text-primary bg-secondary" : "text-muted-foreground"
-                    }`}
+                    className={`w-full justify-start ${isActive(link.to) ? "text-primary" : "text-muted-foreground"}`}
                   >
                     {link.label}
                   </Button>
                 </Link>
               ))}
+              
+              {user ? (
+                <div className="p-2 border-t border-border mt-2">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <div className={`h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white`}>
+                      {userData?.name?.charAt(0) || 'U'}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{userData?.name}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{userData?.role}</p>
+                    </div>
+                  </div>
+                  <Link to={userData?.role === 'admin' ? '/admin' : userData?.role === 'seller' ? '/sell-account' : '/browse'} onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="ghost" className="w-full justify-start mb-1">
+                      {userData?.role === 'admin' ? 'Admin Dashboard' : userData?.role === 'seller' ? 'Seller Dashboard' : 'My Account'}
+                    </Button>
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-red-500"
+                    onClick={() => {
+                      logout();
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    Logout
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="ghost" className="w-full justify-start">
+                      Login
+                    </Button>
+                  </Link>
+                  <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
+                    <Button className="w-full">Sign Up</Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}

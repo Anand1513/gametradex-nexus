@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Shield, TrendingUp } from "lucide-react";
+import { Shield, TrendingUp, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface ListingCardProps {
@@ -9,13 +9,32 @@ interface ListingCardProps {
   tier: string;
   kd: number;
   level: number;
-  price: string;
+  priceRange?: [number, number];
+  priceFixed?: number;
+  isFixed?: boolean;
+  negotiable?: boolean;
+  pendingPrice?: boolean;
   verified: boolean;
   bidding?: boolean;
   image: string;
+  status?: string;
 }
 
-const ListingCard = ({ id, tier, kd, level, price, verified, bidding, image }: ListingCardProps) => {
+const ListingCard = ({ 
+  id, 
+  tier, 
+  kd, 
+  level, 
+  priceRange, 
+  priceFixed,
+  isFixed,
+  negotiable,
+  pendingPrice,
+  verified, 
+  bidding, 
+  image,
+  status
+}: ListingCardProps) => {
   return (
     <Card className="bg-card border-border hover:border-primary/50 transition-all duration-300 hover:shadow-glow overflow-hidden group">
       <div className="relative h-48 overflow-hidden">
@@ -52,8 +71,22 @@ const ListingCard = ({ id, tier, kd, level, price, verified, bidding, image }: L
         </div>
         
         <div className="flex items-baseline gap-2 mb-4">
-          <span className="text-2xl font-bold text-accent">₹{price}</span>
-          <span className="text-xs text-muted-foreground">negotiable</span>
+          {pendingPrice ? (
+            <div className="flex items-center text-amber-500">
+              <AlertCircle className="w-4 h-4 mr-1" />
+              <span>Pending Price</span>
+            </div>
+          ) : isFixed ? (
+            <>
+              <span className="text-2xl font-bold text-accent">₹{priceFixed?.toLocaleString()}</span>
+              {negotiable && <span className="text-xs text-muted-foreground">negotiable</span>}
+            </>
+          ) : (
+            <>
+              <span className="text-2xl font-bold text-accent">₹{priceRange?.[0].toLocaleString()} - ₹{priceRange?.[1].toLocaleString()}</span>
+              {negotiable && <span className="text-xs text-muted-foreground">negotiable</span>}
+            </>
+          )}
         </div>
       </CardContent>
       

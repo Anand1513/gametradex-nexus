@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,33 +7,80 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, Filter, TrendingUp, Clock, User, CheckCircle } from 'lucide-react';
 import BidModal from '@/components/BidModal';
 import LegalDisclaimer from '@/components/LegalDisclaimer';
-import { mockListings, mockBids } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
+import { bidsService, listingsService } from '@/services/firestore';
+import toast from 'react-hot-toast';
 
 const Bidding: React.FC = () => {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [gameFilter, setGameFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedListing, setSelectedListing] = useState<any>(null);
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
+  const [listings, setListings] = useState<any[]>([]);
+  const [bids, setBids] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredListings = mockListings.filter(listing => {
+  // Load data from Firestore
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [listingsData, bidsData] = await Promise.all([
+          listingsService.getAll(),
+          user ? bidsService.getByUser(user.uid) : Promise.resolve([])
+        ]);
+        setListings(listingsData);
+        setBids(bidsData);
+      } catch (error) {
+        toast.error('Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [user]);
+
+  const filteredListings = listings.filter(listing => {
     const matchesSearch = listing.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          listing.tier.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesGame = gameFilter === 'all' || listing.game === gameFilter;
     const matchesStatus = statusFilter === 'all' || 
                          (statusFilter === 'verified' && listing.verified) ||
-                         (statusFilter === 'bidding' && listing.bidding);
+                         (statusFilter === 'bidding' && listing.status === 'bidding');
     return matchesSearch && matchesGame && matchesStatus;
   });
 
   const handlePlaceBid = (listing: any) => {
+    if (!user) {
+      toast.error('Please log in to place a bid');
+      return;
+    }
     setSelectedListing(listing);
     setIsBidModalOpen(true);
   };
 
-  const handleBidSubmit = (bidData: { amount: number; message: string }) => {
-    console.log('Bid submitted:', bidData);
-    // Here you would typically send the bid to your backend
+  const handleBidSubmit = async (bidData: { amount: number; message: string }) => {
+    if (!user || !selectedListing) return;
+
+    try {
+      await bidsService.create({
+        listingId: selectedListing.id,
+        bidderId: user.uid,
+        bidAmount: bidData.amount,
+        status: 'active'
+      });
+      
+      toast.success('Bid placed successfully!');
+      setIsBidModalOpen(false);
+      
+      // Reload bids
+      const updatedBids = await bidsService.getByUser(user.uid);
+      setBids(updatedBids);
+    } catch (error) {
+      toast.error('Failed to place bid');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -122,8 +169,13 @@ const Bidding: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {filteredListings.map((listing) => (
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredListings.map((listing) => (
                     <div key={listing.id} className="border border-border rounded-lg p-4 hover:shadow-glow-sm transition-all">
                       <div className="flex items-center justify-between mb-3">
                         <div>
@@ -158,13 +210,13 @@ const Bidding: React.FC = () => {
                         <div className="text-center">
                           <p className="text-sm text-muted-foreground">Base Range</p>
                           <p className="text-sm font-semibold">
-                            ₹{listing.priceRange[0].toLocaleString()} – ₹{listing.priceRange[1].toLocaleString()}
+                            ₹{listing.priceMin?.toLocaleString()} – ₹{listing.priceMax?.toLocaleString()}
                           </p>
                         </div>
                         <div className="text-center">
                           <p className="text-sm text-muted-foreground">Status</p>
                           <p className="text-sm font-semibold text-accent">
-                            {listing.bidding ? 'Open' : 'Closed'}
+                            {listing.status === 'bidding' ? 'Open' : 'Closed'}
                           </p>
                         </div>
                         <div className="text-center">
@@ -176,7 +228,7 @@ const Bidding: React.FC = () => {
                         </div>
                       </div>
 
-                      {listing.bidding && (
+                      {listing.status === 'bidding' && (
                         <Button 
                           onClick={() => handlePlaceBid(listing)}
                           className="w-full btn-primary"
@@ -185,8 +237,9 @@ const Bidding: React.FC = () => {
                         </Button>
                       )}
                     </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -197,23 +250,31 @@ const Bidding: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {mockBids.slice(0, 5).map((bid) => (
-                    <div key={bid.id} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <User className="w-4 h-4 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">{bid.user}</p>
-                          <p className="text-sm text-muted-foreground">{bid.timestamp}</p>
+                  {bids.slice(0, 5).map((bid) => {
+                    const listing = listings.find(l => l.id === bid.listingId);
+                    return (
+                      <div key={bid.id} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">{listing?.title || 'Unknown Listing'}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {bid.timestamp?.toDate?.()?.toLocaleDateString() || 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <span className="font-semibold">₹{bid.bidAmount?.toLocaleString()}</span>
+                          <Badge className={`text-xs ${getStatusColor(bid.status || 'pending')}`}>
+                            {bid.status || 'pending'}
+                          </Badge>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-3">
-                        <span className="font-semibold">₹{bid.amount.toLocaleString()}</span>
-                        <Badge className={`text-xs ${getStatusColor(bid.status)}`}>
-                          {bid.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
+                  {bids.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">No bids placed yet</p>
+                  )}
                 </div>
               </CardContent>
             </Card>

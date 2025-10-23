@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff, Shield, CheckCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 import ConsentCheckbox from '@/components/ConsentCheckbox';
 
 const Signup: React.FC = () => {
@@ -14,12 +14,14 @@ const Signup: React.FC = () => {
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    role: 'buyer' as 'buyer' | 'seller'
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
+  const { signup } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,33 +35,19 @@ const Signup: React.FC = () => {
     e.preventDefault();
     
     if (!consentChecked) {
-      toast.error('Please agree to the terms and conditions');
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Store user session
-      localStorage.setItem('user', JSON.stringify({
-        id: '1',
-        name: formData.name,
-        email: formData.email,
-        role: 'user'
-      }));
-      
-      toast.success('Account created successfully!');
-      navigate('/browse');
+      await signup(formData.name, formData.email, formData.password, formData.role);
     } catch (error) {
-      toast.error('Signup failed. Please try again.');
+      // Error is handled in the auth context
     } finally {
       setIsLoading(false);
     }
@@ -152,6 +140,34 @@ const Signup: React.FC = () => {
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="role">Account Type</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, role: 'buyer' })}
+                    className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                      formData.role === 'buyer'
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    Buyer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, role: 'seller' })}
+                    className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                      formData.role === 'seller'
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    Seller
                   </button>
                 </div>
               </div>

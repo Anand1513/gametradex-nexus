@@ -7,23 +7,113 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, Upload, AlertTriangle } from "lucide-react";
-import { toast } from "sonner";
+import { useAuth } from '@/contexts/AuthContext';
+import { listingsService } from '@/services/firestore';
+import toast from 'react-hot-toast';
 import ConsentCheckbox from "@/components/ConsentCheckbox";
 import LegalDisclaimer from "@/components/LegalDisclaimer";
 import { serviceFees } from "@/data/mockData";
 
 const Sell = () => {
+  const { user } = useAuth();
+  const [formData, setFormData] = useState({
+    title: '',
+    tier: '',
+    kd: '',
+    level: '',
+    priceMin: '',
+    priceMax: '',
+    description: '',
+    game: 'BGMI',
+    isFixedPrice: false,
+    contactAdmin: false
+  });
   const [agreed1, setAgreed1] = useState(false);
   const [agreed2, setAgreed2] = useState(false);
   const [agreed3, setAgreed3] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      toast.error("Please log in to continue");
+      return;
+    }
+    
     if (!agreed1 || !agreed2 || !agreed3) {
       toast.error("Please agree to all terms before submitting");
       return;
     }
-    toast.success("Listing submitted for verification! Our team will contact you within 24-48 hours.");
+
+    setIsLoading(true);
+
+    try {
+      // Prepare listing data based on price option selected
+      const listingData: any = {
+        title: formData.title,
+        tier: formData.tier,
+        kd: parseFloat(formData.kd),
+        level: parseInt(formData.level),
+        sellerId: user.uid,
+        verified: false,
+        status: 'open',
+        description: formData.description,
+        game: formData.game,
+        pendingPrice: formData.contactAdmin,
+        isFixed: formData.isFixedPrice,
+        negotiable: !formData.isFixedPrice && !formData.contactAdmin
+      };
+
+      // Add price fields only if not contacting admin
+      if (!formData.contactAdmin) {
+        if (formData.isFixedPrice) {
+          // For fixed price, set both min and max to the same value
+          listingData.priceMin = parseInt(formData.priceMin);
+          listingData.priceMax = parseInt(formData.priceMin);
+        } else {
+          // For price range
+          listingData.priceMin = parseInt(formData.priceMin);
+          listingData.priceMax = parseInt(formData.priceMax);
+        }
+      }
+      
+      await listingsService.create(listingData);
+      
+      const successMessage = formData.contactAdmin 
+        ? "Listing submitted! Our admin team will contact you about pricing."
+        : "Listing submitted for verification! Our team will contact you within 24-48 hours.";
+      
+      toast.success(successMessage);
+      
+      // Reset form
+      setFormData({
+        title: '',
+        tier: '',
+        kd: '',
+        level: '',
+        priceMin: '',
+        priceMax: '',
+        description: '',
+        game: 'BGMI',
+        isFixedPrice: false,
+        contactAdmin: false
+      });
+      setAgreed1(false);
+      setAgreed2(false);
+      setAgreed3(false);
+    } catch (error) {
+      toast.error("Failed to submit listing. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -60,34 +150,22 @@ const Sell = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Your Name *</Label>
-                  <Input id="name" placeholder="Full name" required />
-                </div>
-                <div>
-                  <Label htmlFor="contact">Contact Number *</Label>
-                  <Input id="contact" type="tel" placeholder="+91 XXXXXXXXXX" required />
-                </div>
-              </div>
-
               <div>
-                <Label htmlFor="email">Email Address *</Label>
-                <Input id="email" type="email" placeholder="your@email.com" required />
-              </div>
-
-              <div>
-                <Label htmlFor="bgmi-id">Partial Battleground ID *</Label>
-                <Input id="bgmi-id" placeholder="e.g., 51XXXXX789 (mask middle digits)" required />
-                <p className="text-xs text-muted-foreground mt-1">
-                  For security, only share partial ID. Full ID will be verified privately.
-                </p>
+                <Label htmlFor="title">Account Title *</Label>
+                <Input 
+                  id="title" 
+                  name="title"
+                  value={formData.title}
+                  onChange={handleChange}
+                  placeholder="e.g., Conqueror Account with 3+ KD" 
+                  required 
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="tier">Current Tier *</Label>
-                  <Select required>
+                  <Select name="tier" value={formData.tier} onValueChange={(value) => setFormData({...formData, tier: value})} required>
                     <SelectTrigger id="tier">
                       <SelectValue placeholder="Select tier" />
                     </SelectTrigger>
@@ -105,27 +183,141 @@ const Sell = () => {
 
                 <div>
                   <Label htmlFor="kd">K/D Ratio *</Label>
-                  <Input id="kd" type="number" step="0.1" placeholder="e.g., 3.5" required />
+                  <Input 
+                    id="kd" 
+                    name="kd"
+                    value={formData.kd}
+                    onChange={handleChange}
+                    type="number" 
+                    step="0.1" 
+                    placeholder="e.g., 3.5" 
+                    required 
+                  />
                 </div>
 
                 <div>
                   <Label htmlFor="level">Account Level *</Label>
-                  <Input id="level" type="number" placeholder="e.g., 65" required />
+                  <Input 
+                    id="level" 
+                    name="level"
+                    value={formData.level}
+                    onChange={handleChange}
+                    type="number" 
+                    placeholder="e.g., 65" 
+                    required 
+                  />
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="price">Expected Price (₹) *</Label>
-                <Input id="price" type="number" placeholder="e.g., 15000" required />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Final price will be negotiated based on verification and market demand
-                </p>
+              <div className="mb-4">
+                <Label className="mb-2 block">Price Options</Label>
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      id="priceRange"
+                      name="priceOption"
+                      className="mr-2"
+                      checked={!formData.isFixedPrice && !formData.contactAdmin}
+                      onChange={() => setFormData({
+                        ...formData,
+                        isFixedPrice: false,
+                        contactAdmin: false
+                      })}
+                    />
+                    <Label htmlFor="priceRange" className="cursor-pointer">Price Range</Label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      id="fixedPrice"
+                      name="priceOption"
+                      className="mr-2"
+                      checked={formData.isFixedPrice && !formData.contactAdmin}
+                      onChange={() => setFormData({
+                        ...formData,
+                        isFixedPrice: true,
+                        contactAdmin: false
+                      })}
+                    />
+                    <Label htmlFor="fixedPrice" className="cursor-pointer">Fixed Price</Label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      id="contactAdmin"
+                      name="priceOption"
+                      className="mr-2"
+                      checked={formData.contactAdmin}
+                      onChange={() => setFormData({
+                        ...formData,
+                        isFixedPrice: false,
+                        contactAdmin: true
+                      })}
+                    />
+                    <Label htmlFor="contactAdmin" className="cursor-pointer">I'm Not Sure (Contact Admin)</Label>
+                  </div>
+                </div>
+                
+                {!formData.contactAdmin && (
+                  formData.isFixedPrice ? (
+                    <div className="mb-4">
+                      <Label htmlFor="priceMin">Fixed Price (₹) *</Label>
+                      <Input 
+                        id="priceMin" 
+                        name="priceMin"
+                        value={formData.priceMin}
+                        onChange={handleChange}
+                        type="number" 
+                        placeholder="e.g., 12000" 
+                        required={!formData.contactAdmin}
+                      />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="priceMin">Minimum Price (₹) *</Label>
+                        <Input 
+                          id="priceMin" 
+                          name="priceMin"
+                          value={formData.priceMin}
+                          onChange={handleChange}
+                          type="number" 
+                          placeholder="e.g., 10000" 
+                          required={!formData.contactAdmin}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="priceMax">Maximum Price (₹) *</Label>
+                        <Input 
+                          id="priceMax" 
+                          name="priceMax"
+                          value={formData.priceMax}
+                          onChange={handleChange}
+                          type="number" 
+                          placeholder="e.g., 15000" 
+                          required={!formData.contactAdmin}
+                        />
+                      </div>
+                    </div>
+                  )
+                )}
+                
+                {formData.contactAdmin && (
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800 text-sm">
+                    <p className="font-medium">You've selected "Contact Admin"</p>
+                    <p>Our admin team will review your listing and contact you to discuss pricing options.</p>
+                  </div>
+                )}
               </div>
 
               <div>
                 <Label htmlFor="description">Account Description</Label>
                 <Textarea
                   id="description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
                   placeholder="Mention any special skins, achievements, season rewards, etc."
                   rows={4}
                 />
@@ -185,9 +377,9 @@ const Sell = () => {
                 type="submit" 
                 size="lg" 
                 className="w-full btn-primary"
-                disabled={!agreed1 || !agreed2 || !agreed3}
+                disabled={!agreed1 || !agreed2 || !agreed3 || isLoading}
               >
-                Submit for Verification
+                {isLoading ? 'Submitting...' : 'Submit for Verification'}
               </Button>
             </form>
           </CardContent>

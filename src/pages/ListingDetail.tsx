@@ -11,13 +11,14 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Shield, ArrowLeft, TrendingUp, AlertCircle, ShoppingCart } from "lucide-react";
+import { Shield, ArrowLeft, TrendingUp, AlertCircle, ShoppingCart, Clock } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import BidCard from "@/components/BidCard";
 import BidModal from "@/components/BidModal";
 import BuyNowModal from "@/components/BuyNowModal";
 import LegalDisclaimer from "@/components/LegalDisclaimer";
 import { mockListings } from "@/data/mockData";
+import toast from "react-hot-toast";
 
 const ListingDetail = () => {
   const { id } = useParams();
@@ -28,11 +29,13 @@ const ListingDetail = () => {
   const listing = mockListings.find((l) => l.id === id);
 
   const handlePlaceBid = () => {
-    setIsBidModalOpen(true);
+    toast.error('Please log in to place bids');
+    return;
   };
 
   const handleBuyNow = () => {
-    setIsBuyModalOpen(true);
+    toast.error('Please log in to buy accounts');
+    return;
   };
 
   const handleBidSubmit = (bidData: { amount: number; message: string }) => {
@@ -113,7 +116,7 @@ const ListingDetail = () => {
                         Verified
                       </Badge>
                     )}
-                    {listing.bidding && (
+                    {listing.status === 'bidding' && (
                       <Badge className="bg-accent/90 text-accent-foreground">
                         <TrendingUp className="w-3 h-3 mr-1" />
                         Bidding Active
@@ -122,11 +125,31 @@ const ListingDetail = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Price Range</p>
-                  <p className="text-3xl font-bold text-accent">
-                    ₹{listing.priceRange[0].toLocaleString()} – ₹{listing.priceRange[1].toLocaleString()}
-                  </p>
-                  <p className="text-xs text-muted-foreground">negotiable</p>
+                  {listing.pendingPrice ? (
+                    <div className="flex flex-col items-end">
+                      <Badge variant="outline" className="mb-1 border-amber-500 text-amber-500">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        Pending Admin Review
+                      </Badge>
+                      <p className="text-sm text-muted-foreground">Price will be set by admin</p>
+                    </div>
+                  ) : listing.isFixed ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">Fixed Price</p>
+                      <p className="text-3xl font-bold text-accent">
+                        ₹{listing.priceFixed?.toLocaleString() || listing.priceRange[0].toLocaleString()}
+                      </p>
+                      {listing.negotiable && <p className="text-xs text-muted-foreground">negotiable</p>}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted-foreground">Price Range</p>
+                      <p className="text-3xl font-bold text-accent">
+                        ₹{listing.priceRange[0].toLocaleString()} – ₹{listing.priceRange[1].toLocaleString()}
+                      </p>
+                      {listing.negotiable && <p className="text-xs text-muted-foreground">negotiable</p>}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -182,15 +205,40 @@ const ListingDetail = () => {
             </Card>
 
             {/* Bidding Section */}
-            {listing.bidding && listing.currentBid && listing.baseRange && listing.expiresIn && listing.bids && (
-              <BidCard
-                accountTitle={listing.title}
-                currentBid={listing.currentBid}
-                baseRange={listing.baseRange}
-                expiresIn={listing.expiresIn}
-                bids={listing.bids}
-                onPlaceBid={handlePlaceBid}
-              />
+            {listing.status === 'bidding' && (
+              <Card className="bg-card border-border">
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">Bidding Information</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div className="text-center p-3 bg-background rounded-lg">
+                      <p className="text-sm text-muted-foreground">Current Bid</p>
+                      <p className="text-lg font-bold text-primary">₹{listing.priceRange[0].toLocaleString()}</p>
+                    </div>
+                    <div className="text-center p-3 bg-background rounded-lg">
+                      <p className="text-sm text-muted-foreground">Base Range</p>
+                      <p className="text-sm font-semibold">₹{listing.priceRange[0].toLocaleString()} – ₹{listing.priceRange[1].toLocaleString()}</p>
+                    </div>
+                    <div className="text-center p-3 bg-background rounded-lg">
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      <p className="text-sm font-semibold text-accent">Open</p>
+                    </div>
+                    <div className="text-center p-3 bg-background rounded-lg">
+                      <p className="text-sm text-muted-foreground">Expires</p>
+                      <p className="text-sm font-semibold flex items-center justify-center">
+                        <Clock className="w-3 h-3 mr-1" />
+                        N/A
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={handlePlaceBid}
+                    className="w-full btn-primary"
+                  >
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Place Bid
+                  </Button>
+                </CardContent>
+              </Card>
             )}
 
             {/* Escrow Info */}
@@ -240,7 +288,7 @@ const ListingDetail = () => {
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Buy Now
                 </Button>
-                {listing.bidding && (
+                {listing.status === 'bidding' && (
                   <Button 
                     onClick={handlePlaceBid}
                     className="w-full btn-secondary"

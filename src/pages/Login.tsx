@@ -5,14 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Eye, EyeOff, Shield } from 'lucide-react';
-import { toast } from 'sonner';
+import { Eye, EyeOff, Shield, Info } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { DUMMY_CREDENTIALS } from '@/contexts/AuthContext';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const { login, isDummyAuth } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,21 +22,9 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Store user session
-      localStorage.setItem('user', JSON.stringify({
-        id: '1',
-        name: 'User',
-        email,
-        role: 'user'
-      }));
-      
-      toast.success('Login successful!');
-      navigate('/browse');
+      await login(email, password);
     } catch (error) {
-      toast.error('Login failed. Please try again.');
+      // Error is handled in the auth context
     } finally {
       setIsLoading(false);
     }
@@ -103,6 +93,33 @@ const Login: React.FC = () => {
                 {isLoading ? 'Signing In...' : 'Sign In'}
               </Button>
             </form>
+
+            {isDummyAuth && (
+              <div className="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-md">
+                <div className="flex items-start space-x-2">
+                  <Info className="w-4 h-4 text-primary mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-primary">Dummy Auth Mode Active</p>
+                    <p className="text-muted-foreground mt-1">Use these credentials to login:</p>
+                    <div className="mt-1 p-2 bg-background/50 rounded border border-border">
+                      <p className="font-medium text-primary mb-1">Admin:</p>
+                      <p><span className="font-mono">Email:</span> {DUMMY_CREDENTIALS.admin.email}</p>
+                      <p><span className="font-mono">Password:</span> {DUMMY_CREDENTIALS.admin.password}</p>
+                    </div>
+                    <div className="mt-2 p-2 bg-background/50 rounded border border-border">
+                      <p className="font-medium text-primary mb-1">Seller:</p>
+                      <p><span className="font-mono">Email:</span> {DUMMY_CREDENTIALS.seller.email}</p>
+                      <p><span className="font-mono">Password:</span> {DUMMY_CREDENTIALS.seller.password}</p>
+                    </div>
+                    <div className="mt-2 p-2 bg-background/50 rounded border border-border">
+                      <p className="font-medium text-primary mb-1">Buyer:</p>
+                      <p><span className="font-mono">Email:</span> {DUMMY_CREDENTIALS.buyer.email}</p>
+                      <p><span className="font-mono">Password:</span> {DUMMY_CREDENTIALS.buyer.password}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">
