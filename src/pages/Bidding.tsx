@@ -1,0 +1,276 @@
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Search, Filter, TrendingUp, Clock, User, CheckCircle } from 'lucide-react';
+import BidModal from '@/components/BidModal';
+import LegalDisclaimer from '@/components/LegalDisclaimer';
+import { mockListings, mockBids } from '@/data/mockData';
+
+const Bidding: React.FC = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [gameFilter, setGameFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedListing, setSelectedListing] = useState<any>(null);
+  const [isBidModalOpen, setIsBidModalOpen] = useState(false);
+
+  const filteredListings = mockListings.filter(listing => {
+    const matchesSearch = listing.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         listing.tier.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesGame = gameFilter === 'all' || listing.game === gameFilter;
+    const matchesStatus = statusFilter === 'all' || 
+                         (statusFilter === 'verified' && listing.verified) ||
+                         (statusFilter === 'bidding' && listing.bidding);
+    return matchesSearch && matchesGame && matchesStatus;
+  });
+
+  const handlePlaceBid = (listing: any) => {
+    setSelectedListing(listing);
+    setIsBidModalOpen(true);
+  };
+
+  const handleBidSubmit = (bidData: { amount: number; message: string }) => {
+    console.log('Bid submitted:', bidData);
+    // Here you would typically send the bid to your backend
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'highest':
+        return 'bg-primary text-primary-foreground';
+      case 'outbid':
+        return 'bg-destructive/20 text-destructive';
+      case 'pending':
+        return 'bg-yellow-500/20 text-yellow-500';
+      case 'accepted':
+        return 'bg-green-500/20 text-green-500';
+      case 'closed':
+        return 'bg-muted text-muted-foreground';
+      default:
+        return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-primary mb-4">
+            Active Bids & Offers
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Place or manage your bids on verified accounts
+          </p>
+        </div>
+
+        {/* Search and Filters */}
+        <Card className="card-glow mb-8">
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Search by game, tier, or account..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              <Select value={gameFilter} onValueChange={setGameFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by Game" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Games</SelectItem>
+                  <SelectItem value="BGMI">BGMI</SelectItem>
+                  <SelectItem value="PUBG">PUBG</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="verified">Verified Only</SelectItem>
+                  <SelectItem value="bidding">Open Bids</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button variant="outline" className="flex items-center space-x-2">
+                <Filter className="w-4 h-4" />
+                <span>More Filters</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Active Bids Table */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            <Card className="card-glow">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                  <span>Active Bids</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {filteredListings.map((listing) => (
+                    <div key={listing.id} className="border border-border rounded-lg p-4 hover:shadow-glow-sm transition-all">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h3 className="font-semibold text-lg">{listing.title}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {listing.game} • {listing.tier} • KD: {listing.kd}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {listing.verified && (
+                            <Badge className="verified-badge">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Verified
+                            </Badge>
+                          )}
+                          {listing.bidding && (
+                            <Badge className="bidding-badge">
+                              <TrendingUp className="w-3 h-3 mr-1" />
+                              Bidding Open
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground">Current Bid</p>
+                          <p className="text-lg font-bold text-primary">
+                            ₹{listing.currentBid?.toLocaleString() || 'N/A'}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground">Base Range</p>
+                          <p className="text-sm font-semibold">
+                            ₹{listing.priceRange[0].toLocaleString()} – ₹{listing.priceRange[1].toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground">Status</p>
+                          <p className="text-sm font-semibold text-accent">
+                            {listing.bidding ? 'Open' : 'Closed'}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground">Expires</p>
+                          <p className="text-sm font-semibold flex items-center justify-center">
+                            <Clock className="w-3 h-3 mr-1" />
+                            {listing.expiresIn || 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {listing.bidding && (
+                        <Button 
+                          onClick={() => handlePlaceBid(listing)}
+                          className="w-full btn-primary"
+                        >
+                          Place New Bid
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Bid History */}
+            <Card className="card-glow">
+              <CardHeader>
+                <CardTitle>Recent Bid Activity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {mockBids.slice(0, 5).map((bid) => (
+                    <div key={bid.id} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <User className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{bid.user}</p>
+                          <p className="text-sm text-muted-foreground">{bid.timestamp}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className="font-semibold">₹{bid.amount.toLocaleString()}</span>
+                        <Badge className={`text-xs ${getStatusColor(bid.status)}`}>
+                          {bid.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Summary */}
+            <Card className="card-glow">
+              <CardHeader>
+                <CardTitle>Your Activity</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center p-3 bg-muted/30 rounded-lg">
+                  <p className="text-2xl font-bold text-primary">12</p>
+                  <p className="text-sm text-muted-foreground">Total Active Bids</p>
+                </div>
+                <div className="text-center p-3 bg-muted/30 rounded-lg">
+                  <p className="text-2xl font-bold text-accent">3</p>
+                  <p className="text-sm text-muted-foreground">Your Pending Offers</p>
+                </div>
+                <div className="text-center p-3 bg-muted/30 rounded-lg">
+                  <p className="text-2xl font-bold text-green-500">92%</p>
+                  <p className="text-sm text-muted-foreground">Success Rate</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Legal Notice */}
+            <LegalDisclaimer />
+          </div>
+        </div>
+
+        {/* Legal Notice at Bottom */}
+        <div className="mt-8 p-6 bg-muted/20 rounded-lg border border-border">
+          <h3 className="font-semibold text-lg mb-3 flex items-center">
+            ⚖️ Important Notice
+          </h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Bidding is only for initiating negotiations between verified users. 
+            Final payments occur only through escrow after mutual confirmation.
+          </p>
+        </div>
+      </div>
+
+      {/* Bid Modal */}
+      <BidModal
+        isOpen={isBidModalOpen}
+        onClose={() => setIsBidModalOpen(false)}
+        onSubmit={handleBidSubmit}
+        accountTitle={selectedListing?.title || ''}
+        currentBid={selectedListing?.currentBid}
+      />
+    </div>
+  );
+};
+
+export default Bidding;
+
+
