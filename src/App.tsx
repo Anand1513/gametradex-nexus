@@ -8,6 +8,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import Home from "./pages/Home";
 import Browse from "./pages/Browse";
 import ListingDetail from "./pages/ListingDetail";
@@ -18,6 +19,9 @@ import Bidding from "./pages/Bidding";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Admin from "./pages/Admin";
+import AdminLogin from "./pages/AdminLogin";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminActivity from "./pages/AdminActivity";
 import SellerDashboard from "./pages/SellerDashboard";
 import TermsOfService from "./pages/legal/TermsOfService";
 import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
@@ -64,6 +68,17 @@ const App = () => (
                   <ProtectedRoute requireAuth requireAdmin>
                     <Admin />
                   </ProtectedRoute>
+                } />
+                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/admin/dashboard" element={
+                  <AdminProtectedRoute>
+                    <AdminDashboard />
+                  </AdminProtectedRoute>
+                } />
+                <Route path="/admin/activity" element={
+                  <AdminProtectedRoute>
+                    <AdminActivity />
+                  </AdminProtectedRoute>
                 } />
                 <Route path="/sell-account" element={
                   <ProtectedRoute requireAuth requireSeller>

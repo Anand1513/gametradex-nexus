@@ -1,0 +1,68 @@
+[
+  {
+    "adminId": "admin-123",
+    "adminEmail": "admin@gametradex.com",
+    "sessionId": "session-abc123",
+    "actionType": "LOGIN",
+    "targetType": "SESSION",
+    "targetId": "session-abc123",
+    "details": {
+      "loginMethod": "key",
+      "loginTime": "2025-10-24T21:36:33.453Z",
+      "ip": "127.0.0.1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+    },
+    "ip": "127.0.0.1",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "id": "action-1761341793459-6spjybbzr",
+    "createdAt": "2025-10-24T21:36:33.459Z",
+    "hmacSignature": "9f44d6d3921970be7fd509c246ff54ff9e11ad09b0a4ef6f33634c9a787a7ec3",
+    "signedAt": "2025-10-24T21:36:33.460Z"
+  },
+  {
+    "adminId": "admin-123",
+    "adminEmail": "admin@gametradex.com",
+    "sessionId": "session-abc123",
+    "actionType": "PRICE_UPDATE",
+    "targetType": "LISTING",
+    "targetId": "listing-456",
+    "details": {
+      "oldPrice": {
+        "min": 100,
+        "max": 150
+      },
+      "newPrice": {
+        "min": 120,
+        "max": 180
+      },
+      "listingTitle": "Premium Gaming Account",
+      "changeReason": "admin_manual_update"
+    },
+    "ip": "127.0.0.1",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "id": "action-1761341793461-2r9mjemwm",
+    "createdAt": "2025-10-24T21:36:33.461Z",
+    "hmacSignature": "351a2d24413925405c5fc6581fc84f9810ca7a1a7bca80eb44afeffc39dbf99c",
+    "signedAt": "2025-10-24T21:36:33.461Z"
+  },
+  {
+    "adminId": "admin-123",
+    "adminEmail": "admin@gametradex.com",
+    "sessionId": "session-abc123",
+    "actionType": "LISTING_APPROVE",
+    "targetType": "LISTING",
+    "targetId": "listing-789",
+    "details": {
+      "listingTitle": "Rare Gaming Account",
+      "oldStatus": "pending",
+      "newStatus": "approved",
+      "approvalTime": "2025-10-24T21:36:33.462Z"
+    },
+    "ip": "127.0.0.1",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "id": "action-1761341793462-slydw9xbq",
+    "createdAt": "2025-10-24T21:36:33.462Z",
+    "hmacSignature": "02ceca5472fc8f231f4cb14510c0ab0f9ebfa73f312c53ec495c3d7ca9b7434e",
+    "signedAt": "2025-10-24T21:36:33.462Z"
+  }
+]

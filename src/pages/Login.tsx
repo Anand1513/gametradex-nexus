@@ -5,26 +5,41 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Eye, EyeOff, Shield, Info } from 'lucide-react';
+import { Eye, EyeOff, Shield, Info, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DUMMY_CREDENTIALS } from '@/contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [adminRestrictionError, setAdminRestrictionError] = useState(false);
   const { login, isDummyAuth } = useAuth();
   const navigate = useNavigate();
+
+  // Check if admin credentials are being entered
+  const isAdminCredential = email === DUMMY_CREDENTIALS.admin.email && password === DUMMY_CREDENTIALS.admin.password;
+  const isAdminEmail = email === DUMMY_CREDENTIALS.admin.email;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setAdminRestrictionError(false);
+
+    // Check if admin credentials are being used
+    if (email === DUMMY_CREDENTIALS.admin.email && password === DUMMY_CREDENTIALS.admin.password) {
+      setIsLoading(false);
+      setAdminRestrictionError(true);
+      toast.error('Admin access restricted. Please use the admin login page.');
+      return;
+    }
 
     try {
       await login(email, password);
     } catch (error) {
-      // Error is handled in the auth context
+      toast.error('Invalid credentials');
     } finally {
       setIsLoading(false);
     }
@@ -51,6 +66,24 @@ const Login: React.FC = () => {
             <CardTitle className="text-center">Sign In</CardTitle>
           </CardHeader>
           <CardContent>
+            {(adminRestrictionError || isAdminCredential) && (
+              <Alert className="mb-4 bg-destructive/10 border-destructive/20">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <AlertDescription className="text-destructive">
+                  <strong>403 - Admin access restricted.</strong> Admin credentials can only be used on the admin login page.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {isAdminEmail && !isAdminCredential && (
+              <Alert className="mb-4 bg-amber-500/10 border-amber-500/20">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <AlertDescription className="text-amber-500">
+                  <strong>Admin email detected.</strong> Admin credentials are restricted on this page.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -61,6 +94,7 @@ const Login: React.FC = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
                   required
+                  className={isAdminEmail ? "border-amber-500 focus:border-amber-500 focus:ring-amber-500/20" : ""}
                 />
               </div>
 
@@ -74,6 +108,7 @@ const Login: React.FC = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     required
+                    className={isAdminCredential ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""}
                   />
                   <button
                     type="button"
@@ -88,9 +123,9 @@ const Login: React.FC = () => {
               <Button 
                 type="submit" 
                 className="w-full btn-primary" 
-                disabled={isLoading}
+                disabled={isLoading || isAdminCredential}
               >
-                {isLoading ? 'Signing In...' : 'Sign In'}
+                {isLoading ? 'Signing In...' : isAdminCredential ? 'Admin Access Restricted' : 'Sign In'}
               </Button>
             </form>
 
@@ -103,8 +138,7 @@ const Login: React.FC = () => {
                     <p className="text-muted-foreground mt-1">Use these credentials to login:</p>
                     <div className="mt-1 p-2 bg-background/50 rounded border border-border">
                       <p className="font-medium text-primary mb-1">Admin:</p>
-                      <p><span className="font-mono">Email:</span> {DUMMY_CREDENTIALS.admin.email}</p>
-                      <p><span className="font-mono">Password:</span> {DUMMY_CREDENTIALS.admin.password}</p>
+                      <p className="text-muted-foreground text-sm">Admin login restricted - contact administrator</p>
                     </div>
                     <div className="mt-2 p-2 bg-background/50 rounded border border-border">
                       <p className="font-medium text-primary mb-1">Seller:</p>

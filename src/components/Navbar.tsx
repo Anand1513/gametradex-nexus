@@ -20,6 +20,12 @@ const Navbar = () => {
     { to: "/contact", label: "Contact" },
   ];
 
+  // Add admin dashboard link if user is admin
+  const adminLinks = userData?.role === 'admin' ? [
+    { to: "/admin/dashboard", label: "Admin Dashboard" },
+    { to: "/admin/activity", label: "Activity Log" }
+  ] : [];
+
   const isActive = (path: string) => location.pathname === path;
 
   return (
@@ -42,6 +48,17 @@ const Navbar = () => {
                 <Button
                   variant="ghost"
                   className={isActive(link.to) ? "text-primary" : "text-muted-foreground hover:text-foreground"}
+                >
+                  {link.label}
+                </Button>
+              </Link>
+            ))}
+            {/* Admin Dashboard Link - Only visible to admins */}
+            {adminLinks.map((link) => (
+              <Link key={link.to} to={link.to}>
+                <Button
+                  variant="ghost"
+                  className={`${isActive(link.to) ? "text-primary" : "text-muted-foreground hover:text-foreground"} border-l border-border ml-2 pl-4`}
                 >
                   {link.label}
                 </Button>
@@ -91,6 +108,22 @@ const Navbar = () => {
                   <Button
                     variant="ghost"
                     className={`w-full justify-start ${isActive(link.to) ? "text-primary" : "text-muted-foreground"}`}
+                  >
+                    {link.label}
+                  </Button>
+                </Link>
+              ))}
+              
+              {/* Admin Dashboard Link - Only visible to admins in mobile menu */}
+              {adminLinks.map((link) => (
+                <Link 
+                  key={link.to} 
+                  to={link.to}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Button
+                    variant="ghost"
+                    className={`w-full justify-start ${isActive(link.to) ? "text-primary" : "text-muted-foreground"} border-t border-border pt-2 mt-2`}
                   >
                     {link.label}
                   </Button>

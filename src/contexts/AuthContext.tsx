@@ -190,7 +190,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
         
-        toast.error('Invalid credentials');
         throw new Error('Invalid credentials');
       }
       
@@ -220,7 +219,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast.success('Login successful!');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Login failed');
       throw error;
     }
   };

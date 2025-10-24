@@ -22,13 +22,15 @@ interface EditPriceModalProps {
   onClose: () => void;
   onSubmit: (data: any) => void;
   listing: Listing;
+  isLoading?: boolean;
 }
 
 const EditPriceModal: React.FC<EditPriceModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
-  listing
+  listing,
+  isLoading = false
 }) => {
   const [priceMin, setPriceMin] = useState<string>(listing.priceMin?.toString() || '');
   const [priceMax, setPriceMax] = useState<string>(listing.priceMax?.toString() || '');
@@ -68,9 +70,9 @@ const EditPriceModal: React.FC<EditPriceModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-card border-primary/20 shadow-glow">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold flex items-center">
+          <DialogTitle className="text-xl font-bold flex items-center bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             <CreditCard className="w-5 h-5 mr-2 text-primary" />
             Edit Listing Price
           </DialogTitle>
@@ -120,6 +122,7 @@ const EditPriceModal: React.FC<EditPriceModalProps> = ({
                 onChange={(e) => setPriceMin(e.target.value)}
                 placeholder="e.g., 15000"
                 required
+                className="bg-background border-border focus:border-primary focus:ring-primary/20"
               />
             </div>
           ) : (
@@ -133,6 +136,7 @@ const EditPriceModal: React.FC<EditPriceModalProps> = ({
                   onChange={(e) => setPriceMin(e.target.value)}
                   placeholder="e.g., 10000"
                   required
+                  className="bg-background border-border focus:border-primary focus:ring-primary/20"
                 />
               </div>
               <div>
@@ -144,17 +148,18 @@ const EditPriceModal: React.FC<EditPriceModalProps> = ({
                   onChange={(e) => setPriceMax(e.target.value)}
                   placeholder="e.g., 20000"
                   required
+                  className="bg-background border-border focus:border-primary focus:ring-primary/20"
                 />
               </div>
             </div>
           )}
 
           <DialogFooter className="mt-6">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} className="border-border hover:bg-muted">
               Cancel
             </Button>
-            <Button type="submit">
-              Save Changes
+            <Button type="submit" disabled={isLoading} className="btn-primary">
+              {isLoading ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </form>
