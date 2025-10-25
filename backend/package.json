@@ -1,11 +1,14 @@
 {
   "name": "gametradex-backend",
   "version": "1.0.0",
-  "description": "GameTradeX Backend API with MongoDB integration",
-  "main": "server.js",
+  "description": "GameTradeX Backend API with comprehensive testing",
+  "main": "simple-server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "node simple-server.js",
+    "dev": "nodemon simple-server.js",
+    "test": "jest --verbose --detectOpenHandles",
+    "test:watch": "jest --watch --verbose",
+    "test:coverage": "jest --coverage --verbose",
     "setup-db": "node scripts/setupDatabase.js"
   },
   "dependencies": {
@@ -13,22 +16,35 @@
     "mongoose": "^8.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "helmet": "^7.1.0",
-    "morgan": "^1.10.0"
+    "nodemon": "^3.0.2",
+    "nodemailer": "^6.9.7",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "express-rate-limit": "^7.1.5"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2",
-    "@types/express": "^4.17.21",
-    "@types/cors": "^2.8.17",
-    "@types/morgan": "^1.9.9"
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "@types/jest": "^29.5.8"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "**/*.js",
+      "!node_modules/**",
+      "!coverage/**",
+      "!tests/**"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["text", "lcov", "html"]
   },
   "keywords": [
-    "gametradex",
-    "backend",
+    "gaming",
+    "marketplace",
     "api",
-    "mongodb",
-    "admin",
-    "sessions"
+    "testing",
+    "nodejs",
+    "express"
   ],
   "author": "GameTradeX Team",
   "license": "MIT"

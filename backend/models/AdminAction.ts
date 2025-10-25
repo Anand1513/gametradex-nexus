@@ -8,6 +8,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IAdminAction extends Document {
   adminId: string;
   adminEmail: string;
+  actorType: 'admin' | 'user';
   sessionId: string;
   actionType: string;
   targetType: string;
@@ -26,6 +27,13 @@ const AdminActionSchema = new Schema<IAdminAction>({
   },
   adminEmail: {
     type: String,
+    required: true,
+    index: true
+  },
+  actorType: {
+    type: String,
+    enum: ['admin', 'user'],
+    default: 'admin',
     required: true,
     index: true
   },

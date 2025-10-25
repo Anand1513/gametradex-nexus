@@ -5,6 +5,7 @@
 
 import { Request } from 'express';
 import { AdminAction } from '../models/AdminAction';
+import { createAdminActionNotification } from './notifications';
 
 export interface AdminActionParams {
   req: Request;
@@ -17,6 +18,7 @@ export interface AdminActionParams {
   targetType: string;
   targetId?: string;
   details?: Record<string, any>;
+  actorType?: 'admin' | 'user';
 }
 
 export interface AdminActionLogEntry {
@@ -68,7 +70,8 @@ export const logAdminAction = async (params: AdminActionParams): Promise<AdminAc
       actionType,
       targetType,
       targetId,
-      details = {}
+      details = {},
+      actorType = 'admin'
     } = params;
 
     // Extract request information
@@ -79,6 +82,7 @@ export const logAdminAction = async (params: AdminActionParams): Promise<AdminAc
     const adminActionData = {
       adminId: admin.id,
       adminEmail: admin.email,
+      actorType,
       sessionId,
       actionType,
       targetType,
@@ -97,6 +101,19 @@ export const logAdminAction = async (params: AdminActionParams): Promise<AdminAc
     // Save to MongoDB
     const adminAction = new AdminAction(adminActionData);
     const savedAction = await adminAction.save();
+
+    // Create notification for admin actions
+    try {
+      await createAdminActionNotification(
+        actionType,
+        admin.email,
+        targetType,
+        targetId || 'unknown',
+        details
+      );
+    } catch (notificationError) {
+      console.warn('Failed to create notification for admin action:', notificationError);
+    }
 
     console.log('Admin action logged:', {
       id: savedAction._id,

@@ -33,6 +33,12 @@ const adminRoutes = require('./api/routes/simpleAdminRoutes.js');
 // Import admin actions routes
 const adminActionsRoutes = require('./api/routes/adminActionsSimple.js');
 
+// Import listings routes
+const listingsRoutes = require('./api/routes/listings.js');
+
+// Import purchases routes
+const purchasesRoutes = require('./api/routes/purchases.js');
+
 // Use notification routes
 app.use('/api/notifications', notificationRoutes);
 
@@ -41,6 +47,12 @@ app.use('/api/admin', adminRoutes);
 
 // Use admin actions routes
 app.use('/api/admin/actions', adminActionsRoutes);
+
+// Use listings routes
+app.use('/api/listings', listingsRoutes);
+
+// Use purchases routes
+app.use('/api/purchases', purchasesRoutes);
 
 // Debug route to test if adminActionsRoutes is working
 app.get('/api/admin/actions/debug', (req, res) => {
