@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Shield, ArrowLeft, TrendingUp, AlertCircle, ShoppingCart, Clock, Play, Image, Video } from "lucide-react";
+import { Shield, ArrowLeft, TrendingUp, AlertCircle, ShoppingCart, Clock, Play, Image, Video, Heart } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import BidCard from "@/components/BidCard";
 import BidModal from "@/components/BidModal";
@@ -19,6 +19,7 @@ import BuyNowModal from "@/components/BuyNowModal";
 import ContactSellerModal from "@/components/ContactSellerModal";
 import LegalDisclaimer from "@/components/LegalDisclaimer";
 import { mockListings } from "@/data/mockData";
+import { useAuth } from "@/contexts/AuthContext";
 import toast from "react-hot-toast";
 
 const ListingDetail = () => {
@@ -28,8 +29,82 @@ const ListingDetail = () => {
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [loadedVideos, setLoadedVideos] = useState<Set<number>>(new Set());
+  const [isInterested, setIsInterested] = useState(false);
+  const [interestCount, setInterestCount] = useState(0);
+  const { user, userData } = useAuth();
 
   const listing = mockListings.find((l) => l.id === id);
+
+  // Fetch interest count for this listing
+  useEffect(() => {
+    const fetchInterestCount = async () => {
+      try {
+        const response = await fetch(`/api/interests/listing/${id}`);
+        if (response.ok) {
+          const interests = await response.json();
+          setInterestCount(interests.length);
+          
+          // Check if current user has already shown interest
+          if (userData) {
+            const userInterest = interests.find((interest: any) => interest.userId === userData.uid);
+            if (userInterest) {
+              setIsInterested(true);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching interest count:', error);
+      }
+    };
+    
+    if (id) {
+      fetchInterestCount();
+    }
+  }, [id, userData]);
+
+  const handleInterested = async () => {
+    try {
+      // Check if user is logged in
+      if (!user || !userData) {
+        toast.error('Please login to show interest');
+        return;
+      }
+
+      if (!listing) {
+        toast.error('Listing not found');
+        return;
+      }
+
+      // Send interest to admin
+      const response = await fetch('/api/interests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          listingId: listing.id,
+          userId: userData.uid,
+          userEmail: userData.email,
+          userName: userData.name || userData.email,
+          userPhone: userData.phone || 'Not provided',
+          listingTitle: `${listing.tier} Account`,
+          listingPrice: listing.isFixed ? `₹${listing.priceFixed?.toLocaleString()}` : `₹${listing.priceRange?.[0].toLocaleString()} - ₹${listing.priceRange?.[1].toLocaleString()}`,
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      if (response.ok) {
+        setIsInterested(true);
+        setInterestCount(prev => prev + 1);
+        toast.success('Interest recorded! We\'ll contact you soon.');
+      } else {
+        toast.error('Failed to record interest. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error recording interest:', error);
+      toast.error('Failed to record interest. Please try again.');
+    }
+  };
 
   const handlePlaceBid = () => {
     toast.error('Please log in to place bids');
@@ -361,6 +436,28 @@ const ListingDetail = () => {
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Buy Now
                 </Button>
+                
+                {/* Interest Count Display */}
+                {interestCount > 0 && (
+                  <div className="flex items-center justify-center py-2">
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Heart className="w-4 h-4" />
+                      <span>{interestCount} {interestCount === 1 ? 'person' : 'people'} interested</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Interested Button */}
+                <Button 
+                  onClick={handleInterested}
+                  disabled={isInterested}
+                  variant={isInterested ? "default" : "outline"}
+                  className={`w-full ${isInterested ? "bg-green-500 hover:bg-green-600" : "hover:bg-primary/10"}`}
+                >
+                  <Heart className={`w-4 h-4 mr-2 ${isInterested ? "fill-current" : ""}`} />
+                  {isInterested ? "Interested ✓" : "Show Interest"}
+                </Button>
+                
                 {listing.status === 'bidding' && (
                   <Button 
                     onClick={handlePlaceBid}

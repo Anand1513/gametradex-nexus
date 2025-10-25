@@ -7,7 +7,6 @@ import { Toaster as HotToaster } from "react-hot-toast";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import { AuthProvider } from "./contexts/AuthContext";
-import { NotificationProvider } from "./contexts/NotificationContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import Home from "./pages/Home";
@@ -25,6 +24,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminActivity from "./pages/AdminActivity";
 import Dashboard from "./pages/Dashboard";
 import SellerDashboard from "./pages/SellerDashboard";
+import Success from "./pages/Success";
 import TermsOfService from "./pages/legal/TermsOfService";
 import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
 import RefundPolicy from "./pages/legal/RefundPolicy";
@@ -37,7 +37,6 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
-        <NotificationProvider>
           <Toaster />
           <Sonner />
           <HotToaster position="top-right" />
@@ -48,6 +47,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/browse" element={<Browse />} />
+                <Route path="/success" element={<Success />} />
                 <Route path="/listing/:id" element={<ListingDetail />} />
                 <Route path="/sell" element={
                   <ProtectedRoute requireAuth requireSeller>
@@ -103,7 +103,6 @@ const App = () => (
             <Footer />
           </div>
         </BrowserRouter>
-        </NotificationProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

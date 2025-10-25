@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNotifications } from '@/contexts/NotificationContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -26,13 +25,12 @@ import {
   Clock,
   AlertCircle,
   XCircle,
-  Bell,
-  BellRing,
   Check,
   X,
   UserCheck,
   Store,
-  ShoppingBag
+  ShoppingBag,
+  Search
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -51,6 +49,9 @@ interface Listing {
   title: string;
   game: string;
   platform: string;
+  characterId?: string;
+  collectionLevel?: number;
+  kd?: number; // Legacy field for backward compatibility
   price: {
     min: number;
     max: number;
@@ -91,9 +92,24 @@ interface Activity {
   status: string;
 }
 
+interface CustomRequest {
+  _id: string;
+  title: string;
+  game: string;
+  budget: {
+    min: number;
+    max: number;
+    currency: string;
+  };
+  status: 'pending_payment' | 'processing' | 'fulfilled' | 'cancelled' | 'expired';
+  customRequestId?: string;
+  advancePaid: boolean;
+  createdAt: string;
+  expiresAt?: string;
+}
+
 const Dashboard: React.FC = () => {
   const { user, userData } = useAuth();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [userStats, setUserStats] = useState<UserStats>({
@@ -107,6 +123,7 @@ const Dashboard: React.FC = () => {
   const [listings, setListings] = useState<Listing[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [customRequests, setCustomRequests] = useState<CustomRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
@@ -134,6 +151,9 @@ const Dashboard: React.FC = () => {
             title: 'Conqueror Account - Season 12',
             game: 'BGMI',
             platform: 'Mobile',
+            characterId: '1234567890',
+            collectionLevel: 4.2,
+            kd: 4.2, // Legacy field
             price: { min: 20000, max: 30000, currency: 'INR' },
             status: 'approved',
             stats: { views: 50, favorites: 5, inquiries: 2 },
@@ -144,6 +164,9 @@ const Dashboard: React.FC = () => {
             title: 'Radiant Account - Act 3',
             game: 'Valorant',
             platform: 'PC',
+            characterId: '9876543210',
+            collectionLevel: 3.8,
+            kd: 3.8, // Legacy field
             price: { min: 300, max: 400, currency: 'USD' },
             status: 'pending',
             stats: { views: 25, favorites: 3, inquiries: 1 },
@@ -210,6 +233,39 @@ const Dashboard: React.FC = () => {
           }
         ]);
 
+        setCustomRequests([
+          {
+            _id: 'req-1',
+            title: 'Premium Conqueror Account Request',
+            game: 'BGMI',
+            budget: { min: 20000, max: 30000, currency: 'INR' },
+            status: 'fulfilled',
+            customRequestId: 'CR-20251025-1289',
+            advancePaid: true,
+            createdAt: '2025-10-25T12:07:09.539Z'
+          },
+          {
+            _id: 'req-2',
+            title: 'High-tier Valorant Account',
+            game: 'Valorant',
+            budget: { min: 150, max: 250, currency: 'USD' },
+            status: 'processing',
+            customRequestId: 'CR-20251025-2087',
+            advancePaid: true,
+            createdAt: '2025-10-25T12:13:42.827Z'
+          },
+          {
+            _id: 'req-3',
+            title: 'Fortnite Pro Account',
+            game: 'Fortnite',
+            budget: { min: 100, max: 200, currency: 'USD' },
+            status: 'pending_payment',
+            advancePaid: false,
+            createdAt: '2025-10-24T15:30:00Z',
+            expiresAt: '2025-10-31T15:30:00Z'
+          }
+        ]);
+
         setLoading(false);
       }, 1000);
     };
@@ -222,14 +278,19 @@ const Dashboard: React.FC = () => {
       case 'approved':
       case 'completed':
       case 'delivered':
+      case 'fulfilled':
         return 'bg-green-500';
       case 'pending':
+      case 'processing':
         return 'bg-yellow-500';
       case 'rejected':
       case 'cancelled':
+      case 'expired':
         return 'bg-red-500';
       case 'paid':
         return 'bg-blue-500';
+      case 'pending_payment':
+        return 'bg-orange-500';
       default:
         return 'bg-gray-500';
     }
@@ -491,93 +552,10 @@ const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Notifications Section */}
-        {unreadCount > 0 && (
-          <Card className="mb-6 border-primary/20 bg-primary/5">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <BellRing className="w-5 h-5 text-primary" />
-                  <span>Notifications</span>
-                  <Badge variant="destructive">{unreadCount}</Badge>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => markAllAsRead()}
-                  className="text-xs"
-                >
-                  <Check className="w-4 h-4 mr-1" />
-                  Mark All Read
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-32">
-                <div className="space-y-2">
-                  {notifications.slice(0, 5).map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={`flex items-center justify-between p-3 rounded-lg border ${
-                        notification.isRead ? 'bg-muted/50' : 'bg-primary/10 border-primary/20'
-                      }`}
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-2 h-2 rounded-full ${
-                            notification.priority === 'HIGH' ? 'bg-red-500' :
-                            notification.priority === 'MEDIUM' ? 'bg-yellow-500' : 'bg-green-500'
-                          }`} />
-                          <span className="font-medium text-sm">{notification.title}</span>
-                          {!notification.isRead && (
-                            <Badge variant="secondary" className="text-xs">New</Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {formatDate(notification.createdAt)}
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {!notification.isRead && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => markAsRead(notification.id)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Check className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {notification.targetUrl && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              if (notification.targetUrl) {
-                                navigate(notification.targetUrl);
-                                markAsRead(notification.id);
-                              }
-                            }}
-                            className="h-8 w-8 p-0"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className={`grid w-full ${currentRole === 'both' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <TabsList className={`grid w-full ${currentRole === 'both' ? 'grid-cols-4' : 'grid-cols-3'}`}>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             {currentRole === 'both' || currentRole === 'seller' ? (
               <TabsTrigger value="listings">My Listings</TabsTrigger>
@@ -585,6 +563,7 @@ const Dashboard: React.FC = () => {
             {currentRole === 'both' || currentRole === 'buyer' ? (
               <TabsTrigger value="purchases">My Purchases</TabsTrigger>
             ) : null}
+            <TabsTrigger value="custom-requests">Custom Requests</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -601,7 +580,15 @@ const Dashboard: React.FC = () => {
                       <div key={listing._id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div>
                           <h4 className="font-medium">{listing.title}</h4>
-                          <p className="text-sm text-muted-foreground">{listing.game} • {listing.platform}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {listing.game} • {listing.platform}
+                            {listing.characterId && (
+                              <span className="ml-2 font-mono text-xs">ID: {listing.characterId}</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-primary font-semibold">
+                            Collection Level: {listing.collectionLevel || listing.kd || 'N/A'}
+                          </p>
                         </div>
                         <div className="text-right">
                           <div className="font-medium">{formatCurrency(listing.price.min, listing.price.currency)}</div>
@@ -680,6 +667,7 @@ const Dashboard: React.FC = () => {
                     <TableRow>
                       <TableHead>Title</TableHead>
                       <TableHead>Game</TableHead>
+                      <TableHead>Collection Level</TableHead>
                       <TableHead>Price</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Views</TableHead>
@@ -690,7 +678,21 @@ const Dashboard: React.FC = () => {
                     {listings.map((listing) => (
                       <TableRow key={listing._id}>
                         <TableCell className="font-medium">{listing.title}</TableCell>
-                        <TableCell>{listing.game}</TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{listing.game}</div>
+                            {listing.characterId && (
+                              <div className="text-xs text-muted-foreground font-mono">
+                                ID: {listing.characterId}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-semibold text-primary">
+                            {listing.collectionLevel || listing.kd || 'N/A'}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           {formatCurrency(listing.price.min, listing.price.currency)}
                           {!listing.price.min === listing.price.max && ` - ${formatCurrency(listing.price.max, listing.price.currency)}`}
@@ -792,6 +794,71 @@ const Dashboard: React.FC = () => {
             </Card>
           </TabsContent>
           )}
+
+          {/* Custom Requests Tab */}
+          <TabsContent value="custom-requests">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Search className="w-5 h-5 mr-2" />
+                  Custom Requests
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Game</TableHead>
+                      <TableHead>Budget</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Request ID</TableHead>
+                      <TableHead>Created</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customRequests.map((request) => (
+                      <TableRow key={request._id}>
+                        <TableCell className="font-medium">{request.title}</TableCell>
+                        <TableCell>{request.game}</TableCell>
+                        <TableCell>
+                          {request.budget.currency} {request.budget.min.toLocaleString()} - {request.budget.max.toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(request.status)}>
+                            {request.status.replace('_', ' ').toUpperCase()}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {request.customRequestId ? (
+                            <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
+                              {request.customRequestId}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">Pending</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{formatDate(request.createdAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                
+                {customRequests.length === 0 && (
+                  <div className="text-center py-8">
+                    <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No Custom Requests</h3>
+                    <p className="text-muted-foreground mb-4">
+                      You haven't submitted any custom requests yet.
+                    </p>
+                    <Button onClick={() => navigate('/inquiry')} className="btn-primary">
+                      Submit Custom Request
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
 
         {/* Purchase Details Modal */}

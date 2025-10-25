@@ -4,11 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ListingCard from "@/components/ListingCard";
-import VerifiedTag from "@/components/VerifiedTag";
 import LegalDisclaimer from "@/components/LegalDisclaimer";
-import BuyNowModal from "@/components/BuyNowModal";
 import ContactSellerModal from "@/components/ContactSellerModal";
-import { Search, ShoppingCart, TrendingUp } from "lucide-react";
+import { Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { mockListings } from "@/data/mockData";
 import toast from "react-hot-toast";
@@ -20,7 +18,6 @@ const Browse = () => {
   const [sortBy, setSortBy] = useState<string>("recent");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedListing, setSelectedListing] = useState<any>(null);
-  const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -61,16 +58,6 @@ const Browse = () => {
   const handleBuyNow = (listing: any) => {
     setSelectedListing(listing);
     setIsContactModalOpen(true);
-  };
-
-  const handlePlaceBid = (listing: any) => {
-    toast.error('Please log in to place bids');
-    return;
-  };
-
-  const handleBuySubmit = (buyData: { amount: number; paymentMethod: string }) => {
-    console.log('Buy now:', buyData);
-    // Here you would typically create an escrow record
   };
 
   return (
@@ -189,57 +176,24 @@ const Browse = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredListings.map((listing) => (
-            <div key={listing.id} className="card-glow p-6 rounded-lg">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">{listing.title}</h3>
-                <div className="flex space-x-2">
-                  {listing.verified && <VerifiedTag type="verified" />}
-                  {listing.bidding && <VerifiedTag type="bidding" />}
-                </div>
-              </div>
-              <div className="space-y-2 text-sm text-muted-foreground mb-4">
-                <p>{listing.game} • {listing.tier} • Collection Level: {listing.collectionLevel || listing.kd}</p>
-                <p>Level: {listing.level}</p>
-                {listing.characterId && (
-                  <p className="text-xs font-mono">ID: {listing.characterId}</p>
-                )}
-                <p className="font-semibold text-primary">
-                  {listing.pendingPrice ? (
-                    <span className="text-amber-500">Pending Price</span>
-                  ) : listing.isFixed ? (
-                    <>₹{listing.priceFixed?.toLocaleString()}{listing.negotiable && " (Negotiable)"}</>
-                  ) : (
-                    <>₹{listing.priceRange[0].toLocaleString()} – ₹{listing.priceRange[1].toLocaleString()}{listing.negotiable && " (Negotiable)"}</>
-                  )}
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Button 
-                  className="w-full btn-primary"
-                  onClick={() => navigate(`/listing/${listing.id}`)}
-                >
-                  View Details
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => handleBuyNow(listing)}
-                >
-                  <ShoppingCart className="w-4 h-4 mr-2" />
-                  Buy Now
-                </Button>
-                {listing.status === 'bidding' && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full border-primary/50 text-primary hover:bg-primary/10"
-                    onClick={() => handlePlaceBid(listing)}
-                  >
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    Place Bid
-                  </Button>
-                )}
-              </div>
-            </div>
+            <ListingCard
+              key={listing.id}
+              id={listing.id}
+              tier={listing.tier}
+              kd={listing.kd}
+              collectionLevel={listing.collectionLevel}
+              level={listing.level}
+              characterId={listing.characterId}
+              priceRange={listing.priceRange}
+              priceFixed={listing.priceFixed}
+              isFixed={listing.isFixed}
+              negotiable={listing.negotiable}
+              pendingPrice={listing.pendingPrice}
+              verified={listing.verified}
+              bidding={listing.bidding}
+              image={listing.image}
+              status={listing.status}
+            />
           ))}
         </div>
 
@@ -253,15 +207,6 @@ const Browse = () => {
           <Button variant="outline" size="lg">Load More Listings</Button>
         </div>
 
-        {/* Buy Now Modal */}
-        {selectedListing && (
-          <BuyNowModal
-            isOpen={isBuyModalOpen}
-            onClose={() => setIsBuyModalOpen(false)}
-            onSubmit={handleBuySubmit}
-            listing={selectedListing}
-          />
-        )}
 
         {/* Contact Seller Modal */}
         {selectedListing && (

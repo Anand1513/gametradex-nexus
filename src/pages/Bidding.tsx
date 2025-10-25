@@ -181,7 +181,7 @@ const Bidding: React.FC = () => {
                         <div>
                           <h3 className="font-semibold text-lg">{listing.title}</h3>
                           <p className="text-sm text-muted-foreground">
-                            {listing.game} • {listing.tier} • KD: {listing.kd}
+                            {listing.game} • {listing.tier} • Collection Level: {listing.collectionLevel || listing.kd}
                           </p>
                         </div>
                         <div className="flex items-center space-x-2">

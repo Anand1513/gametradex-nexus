@@ -17,6 +17,7 @@ const Navbar = () => {
     { to: "/bidding", label: "Bidding" },
     { to: "/sell", label: "Sell Account" },
     { to: "/inquiry", label: "Custom Request" },
+    { to: "/success", label: "Success Stories" },
     { to: "/contact", label: "Contact" },
   ];
 
@@ -25,6 +26,11 @@ const Navbar = () => {
     { to: "/admin/dashboard", label: "Admin Dashboard" },
     { to: "/admin/activity", label: "Activity Log" }
   ] : [];
+
+  // Debug logging
+  console.log('Navbar - userData:', userData);
+  console.log('Navbar - userData?.role:', userData?.role);
+  console.log('Navbar - adminLinks:', adminLinks);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -141,9 +147,9 @@ const Navbar = () => {
                       <p className="text-xs text-muted-foreground capitalize">{userData?.role}</p>
                     </div>
                   </div>
-                  <Link to={userData?.role === 'admin' ? '/admin' : userData?.role === 'seller' ? '/sell-account' : '/browse'} onClick={() => setMobileMenuOpen(false)}>
+                  <Link to={userData?.role === 'admin' ? '/admin/dashboard' : userData?.role === 'seller' ? '/sell-account' : '/dashboard'} onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="ghost" className="w-full justify-start mb-1">
-                      {userData?.role === 'admin' ? 'Admin Dashboard' : userData?.role === 'seller' ? 'Seller Dashboard' : 'My Account'}
+                      {userData?.role === 'admin' ? 'Admin Dashboard' : userData?.role === 'seller' ? 'Seller Dashboard' : 'My Dashboard'}
                     </Button>
                   </Link>
                   <Button

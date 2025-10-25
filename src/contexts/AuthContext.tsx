@@ -24,6 +24,7 @@ interface UserData {
   uid: string;
   name: string;
   email: string;
+  phone: string;
   role: 'admin' | 'seller' | 'buyer';
   createdAt: Date;
 }
@@ -35,6 +36,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string, role?: 'seller' | 'buyer') => Promise<void>;
   logout: () => Promise<void>;
+  refreshAuth: () => void;
   isAdmin: boolean;
   isSeller: boolean;
   isBuyer: boolean;
@@ -66,18 +68,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const tokenData = JSON.parse(dummyToken);
             // Check if token is still valid
             if (tokenData.expiry > Date.now()) {
-              // Find user in dummy DB
-              const dummyUser = dummyDB.users.find(u => u.uid === tokenData.uid);
-              if (dummyUser) {
+              // Check if this is an admin login from AdminLogin component
+              if (tokenData.uid === 'admin-key-user' || tokenData.uid === 'admin-credential-user') {
+                // Create admin user data
+                const adminUserData = {
+                  uid: tokenData.uid,
+                  name: 'Admin User',
+                  email: tokenData.email,
+                  role: 'admin' as const,
+                  createdAt: new Date()
+                };
+                
                 // Create a pseudo Firebase User object
                 const pseudoUser = {
-                  uid: dummyUser.uid,
-                  email: dummyUser.email,
-                  displayName: dummyUser.name,
+                  uid: adminUserData.uid,
+                  email: adminUserData.email,
+                  displayName: adminUserData.name,
                 } as User;
                 
                 setUser(pseudoUser);
-                setUserData(dummyUser as UserData);
+                setUserData(adminUserData);
+              } else {
+                // Find user in dummy DB for regular users
+                const dummyUser = dummyDB.users.find(u => u.uid === tokenData.uid);
+                if (dummyUser) {
+                  // Create a pseudo Firebase User object
+                  const pseudoUser = {
+                    uid: dummyUser.uid,
+                    email: dummyUser.email,
+                    displayName: dummyUser.name,
+                  } as User;
+                  
+                  setUser(pseudoUser);
+                  setUserData(dummyUser as UserData);
+                }
               }
             } else {
               // Token expired, remove it
@@ -173,7 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Role-based redirection
             switch (userRole) {
               case 'admin':
-                window.location.href = '/admin';
+                window.location.href = '/admin/dashboard';
                 break;
               case 'seller':
                 window.location.href = '/sell';
@@ -209,7 +233,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Redirect based on role
         if (userData.role === 'admin') {
-          window.location.href = '/admin';
+          window.location.href = '/admin/dashboard';
         } else if (userData.role === 'seller') {
           window.location.href = '/sell';
         } else {
@@ -228,6 +252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (USE_DUMMY_AUTH) {
         // Clear dummy auth token
         localStorage.removeItem('dummyAuthToken');
+        localStorage.removeItem('adminSession');
         setUser(null);
         setUserData(null);
         window.location.href = '/';
@@ -244,7 +269,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signup = async (name: string, email: string, password: string, role: 'seller' | 'buyer' = 'buyer') => {
+  const refreshAuth = () => {
+    if (USE_DUMMY_AUTH) {
+      const dummyToken = localStorage.getItem('dummyAuthToken');
+      if (dummyToken) {
+        try {
+          const tokenData = JSON.parse(dummyToken);
+          if (tokenData.expiry > Date.now()) {
+            // Check if this is an admin login
+            if (tokenData.uid === 'admin-key-user' || tokenData.uid === 'admin-credential-user') {
+              const adminUserData = {
+                uid: tokenData.uid,
+                name: 'Admin User',
+                email: tokenData.email,
+                role: 'admin' as const,
+                createdAt: new Date()
+              };
+              
+              const pseudoUser = {
+                uid: adminUserData.uid,
+                email: adminUserData.email,
+                displayName: adminUserData.name,
+              } as User;
+              
+              setUser(pseudoUser);
+              setUserData(adminUserData);
+            } else {
+              // Regular user
+              const dummyUser = dummyDB.users.find(u => u.uid === tokenData.uid);
+              if (dummyUser) {
+                const pseudoUser = {
+                  uid: dummyUser.uid,
+                  email: dummyUser.email,
+                  displayName: dummyUser.name,
+                } as User;
+                
+                setUser(pseudoUser);
+                setUserData(dummyUser as UserData);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error refreshing auth:', error);
+        }
+      }
+    }
+  };
+
+  const signup = async (name: string, email: string, phone: string, password: string, role: 'seller' | 'buyer' = 'buyer') => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
@@ -254,6 +326,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         uid: user.uid,
         name,
         email,
+        phone,
         role,
         createdAt: new Date()
       };
@@ -284,6 +357,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     signup,
     logout,
+    refreshAuth,
     isAdmin: userData?.role === 'admin',
     isSeller: userData?.role === 'seller' || userData?.role === 'admin',
     isBuyer: userData?.role === 'buyer' || userData?.role === 'admin',

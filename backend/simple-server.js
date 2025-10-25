@@ -39,6 +39,15 @@ const listingsRoutes = require('./api/routes/listings.js');
 // Import purchases routes
 const purchasesRoutes = require('./api/routes/purchases.js');
 
+// Import custom requests routes
+const customRequestsRoutes = require('./api/routes/simpleCustomRequests.js');
+
+// Import payments routes
+const paymentsRoutes = require('./api/routes/simplePayments.js');
+
+// Import interests routes
+const interestsRoutes = require('./api/routes/simpleInterests.js');
+
 // Use notification routes
 app.use('/api/notifications', notificationRoutes);
 
@@ -54,12 +63,98 @@ app.use('/api/listings', listingsRoutes);
 // Use purchases routes
 app.use('/api/purchases', purchasesRoutes);
 
+// Use custom requests routes
+app.use('/api/custom-requests', customRequestsRoutes);
+
+// Use payments routes
+app.use('/api/payments', paymentsRoutes);
+
+// Use interests routes
+app.use('/api/interests', interestsRoutes);
+
 // Debug route to test if adminActionsRoutes is working
 app.get('/api/admin/actions/debug', (req, res) => {
   res.json({ 
     message: 'Admin actions routes are working',
     timestamp: new Date().toISOString()
   });
+});
+
+// Custom Request Fulfillment Endpoint
+app.put('/api/admin/custom-requests/:id/fulfill', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { adminEmail, adminId } = req.body;
+    
+    // Import the shared data functions
+    const { updateCustomRequest, findCustomRequest } = require('./api/routes/sharedData');
+    
+    // Find the custom request
+    const request = findCustomRequest(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Custom request not found'
+      });
+    }
+    
+    // Update the request status to fulfilled
+    const updatedRequest = updateCustomRequest(id, {
+      status: 'fulfilled',
+      fulfilledAt: new Date(),
+      fulfilledBy: adminId,
+      fulfilledByEmail: adminEmail
+    });
+    
+    // Log admin action
+    console.log('📝 Admin action logged:', {
+      adminId,
+      adminEmail,
+      actionType: 'CUSTOM_REQUEST_FULFILLED',
+      targetType: 'CUSTOM_REQUEST',
+      targetId: id,
+      actorType: 'admin',
+      timestamp: new Date().toISOString()
+    });
+    
+    // Create notification for user
+    console.log('📢 Notification created:', {
+      type: 'CUSTOM_REQUEST_FULFILLED',
+      title: 'Custom Request Completed',
+      message: `Your custom request "${request.title}" has been completed and is ready for delivery.`,
+      customRequestId: request.customRequestId,
+      userId: request.userId,
+      userEmail: request.userEmail,
+      priority: 'HIGH',
+      timestamp: new Date().toISOString()
+    });
+    
+    // Send email notification
+    console.log('📧 Email sent:', {
+      to: request.userEmail,
+      subject: 'Custom Request Completed - Ready for Delivery',
+      customRequestId: request.customRequestId,
+      timestamp: new Date().toISOString()
+    });
+    
+    res.json({
+      success: true,
+      message: 'Custom request marked as fulfilled. User has been notified.',
+      data: {
+        requestId: id,
+        customRequestId: request.customRequestId,
+        status: 'fulfilled',
+        fulfilledAt: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fulfilling custom request:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fulfill custom request'
+    });
+  }
 });
 
 // Error handling middleware

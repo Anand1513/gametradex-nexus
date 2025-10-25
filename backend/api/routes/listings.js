@@ -4,7 +4,54 @@
  */
 
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const router = express.Router();
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = 'uploads/listings';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  if (file.fieldname === 'screenshots') {
+    // Allow only image files for screenshots
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed for screenshots'), false);
+    }
+  } else if (file.fieldname === 'videos') {
+    // Allow only video files for videos
+    if (file.mimetype.startsWith('video/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only video files are allowed for videos'), false);
+    }
+  } else {
+    cb(new Error('Invalid field name'), false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB max file size
+    files: 15 // Max 15 files total (10 screenshots + 5 videos)
+  }
+});
 const { Listing } = require('../../models/Listing');
 const { User } = require('../../models/User');
 const { Purchase } = require('../../models/Purchase');
@@ -17,26 +64,39 @@ const {
   verifyOwnership,
   verifyAdminAccess
 } = require('../../utils/simpleHelpers');
+const { listingCompatibility, validateListingFields } = require('../../middleware/listingCompatibility');
 
 /**
  * Create new listing
  * POST /api/listings
  */
-router.post('/', async (req, res) => {
+router.post('/', upload.fields([
+  { name: 'screenshots', maxCount: 10 },
+  { name: 'videos', maxCount: 5 }
+]), validateListingFields, async (req, res) => {
   try {
+    // Handle multer errors
+    if (req.fileValidationError) {
+      return res.status(400).json({
+        success: false,
+        message: req.fileValidationError
+      });
+    }
     const {
       title,
       description,
       game,
-      platform,
-      accountLevel,
-      rank,
-      price,
-      images = [],
+      characterId,
+      collectionLevel,
+      level,
+      tier,
+      priceMin,
+      priceMax,
+      isFixed,
+      currency = 'USD',
       tags = [],
       requirements = {},
-      deliveryMethod = 'email',
-      deliveryInstructions
+      sellerContacts = {}
     } = req.body;
 
     const userId = req.user?.id;
@@ -48,11 +108,48 @@ router.post('/', async (req, res) => {
     }
 
     // Validate required fields
-    if (!title || !description || !game || !platform || !accountLevel || !rank || !price) {
+    if (!title || !description || !game || !characterId || !collectionLevel || !level || !tier) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields'
+        message: 'Missing required fields: title, description, game, characterId, collectionLevel, level, tier'
       });
+    }
+
+    // Validate at least one screenshot
+    if (!req.files || !req.files.screenshots || req.files.screenshots.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one screenshot is required'
+      });
+    }
+
+    // Validate price fields
+    if (!priceMin || !priceMax) {
+      return res.status(400).json({
+        success: false,
+        message: 'Price fields are required'
+      });
+    }
+
+    // Validate video files if provided
+    if (req.files && req.files.videos) {
+      const validVideoTypes = ['video/mp4', 'video/mov', 'video/webm'];
+      const invalidVideos = req.files.videos.filter(file => !validVideoTypes.includes(file.mimetype));
+      if (invalidVideos.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Only MP4, MOV, and WebM video formats are allowed'
+        });
+      }
+
+      // Check video file sizes (50MB max)
+      const oversizedVideos = req.files.videos.filter(file => file.size > 50 * 1024 * 1024);
+      if (oversizedVideos.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Videos must be smaller than 50MB each'
+        });
+      }
     }
 
     // Get user details
@@ -64,27 +161,54 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Process uploaded files and create URLs
+    const imageUrls = [];
+    const videoUrls = [];
+
+    if (req.files.screenshots) {
+      req.files.screenshots.forEach(file => {
+        // In production, you would upload to Cloudinary or AWS S3
+        // For now, we'll use local file paths
+        const fileUrl = `${req.protocol}://${req.get('host')}/uploads/listings/${file.filename}`;
+        imageUrls.push(fileUrl);
+      });
+    }
+
+    if (req.files.videos) {
+      req.files.videos.forEach(file => {
+        const fileUrl = `${req.protocol}://${req.get('host')}/uploads/listings/${file.filename}`;
+        videoUrls.push(fileUrl);
+      });
+    }
+
     // Create listing
     const listing = new Listing({
       title,
       description,
       game,
-      platform,
-      accountLevel,
-      rank,
+      platform: 'PC', // Default platform, can be updated later
+      accountLevel: parseInt(level),
+      characterId,
+      collectionLevel: parseFloat(collectionLevel),
+      kdRatio: parseFloat(collectionLevel), // Legacy field for backward compatibility
+      rank: tier,
       price: {
-        min: price.min,
-        max: price.max,
-        isFixed: price.isFixed || false,
-        currency: price.currency || 'USD'
+        min: parseInt(priceMin),
+        max: parseInt(priceMax),
+        isFixed: isFixed === 'true' || isFixed === true,
+        currency: currency
       },
       sellerId: userId,
       sellerEmail: user.email,
-      images,
+      sellerContacts: {
+        discord: sellerContacts.discord || undefined,
+        telegram: sellerContacts.telegram || undefined,
+        whatsapp: sellerContacts.whatsapp || undefined
+      },
+      images: imageUrls,
+      videos: videoUrls,
       tags,
-      requirements,
-      deliveryMethod,
-      deliveryInstructions
+      requirements
     });
 
     const savedListing = await listing.save();
@@ -113,8 +237,13 @@ router.post('/', async (req, res) => {
         details: {
           listingTitle: title,
           game,
-          platform,
+          characterId,
+          collectionLevel: parseFloat(collectionLevel),
+          level: parseInt(level),
+          tier,
           price: savedListing.price,
+          screenshotsCount: imageUrls.length,
+          videosCount: videoUrls.length,
           sellerId: userId,
           sellerEmail: user.email
         },
@@ -165,6 +294,22 @@ router.post('/', async (req, res) => {
 
   } catch (error) {
     console.error('Error creating listing:', error);
+    
+    // Handle multer errors specifically
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'File too large. Maximum size is 50MB per file.'
+      });
+    }
+    
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        success: false,
+        message: 'Too many files. Maximum 10 screenshots and 5 videos allowed.'
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Failed to create listing',
@@ -177,7 +322,7 @@ router.post('/', async (req, res) => {
  * Get listings
  * GET /api/listings
  */
-router.get('/', async (req, res) => {
+router.get('/', listingCompatibility, async (req, res) => {
   try {
     // Mock data for testing
     const mockListings = [
@@ -243,7 +388,7 @@ router.get('/', async (req, res) => {
  * Get listing by ID
  * GET /api/listings/:id
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', listingCompatibility, async (req, res) => {
   try {
     const listing = await Listing.findById(req.params.id);
     

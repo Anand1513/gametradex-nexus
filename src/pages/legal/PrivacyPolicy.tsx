@@ -28,7 +28,7 @@ const PrivacyPolicy: React.FC = () => {
                 <ul className="list-disc list-inside space-y-2 text-muted-foreground">
                   <li>Contact information (name, email, phone)</li>
                   <li>Partial gaming account identifiers (masked for security)</li>
-                  <li>Account statistics (tier, KD, level) for verification</li>
+                  <li>Account statistics (tier, collection level, level) for verification</li>
                   <li>Transaction history and communication logs</li>
                 </ul>
               </CardContent>

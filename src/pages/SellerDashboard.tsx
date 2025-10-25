@@ -16,7 +16,7 @@ const SellerDashboard: React.FC = () => {
   const [myListings, setMyListings] = useState([
     { 
       id: '1', 
-      title: 'Conqueror Account - 4.2 KD', 
+      title: 'Conqueror Account - 4.2 Collection Level', 
       status: 'open', 
       verified: true, 
       priceMin: 25000, 
@@ -28,7 +28,7 @@ const SellerDashboard: React.FC = () => {
     },
     { 
       id: '2', 
-      title: 'Ace Master Account - 3.8 KD', 
+      title: 'Ace Master Account - 3.8 Collection Level', 
       status: 'bidding', 
       verified: false, 
       priceMin: 15000, 
@@ -40,7 +40,7 @@ const SellerDashboard: React.FC = () => {
     },
     { 
       id: '3', 
-      title: 'Platinum Account - 1.8 KD', 
+      title: 'Platinum Account - 1.8 Collection Level', 
       status: 'open', 
       verified: false, 
       pendingPrice: true,

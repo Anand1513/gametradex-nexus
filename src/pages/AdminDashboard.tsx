@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Shield, Users, DollarSign, FileText, LogOut, Search, Filter, Download, Edit, Settings, Trash2 } from 'lucide-react';
+import { Shield, Users, DollarSign, FileText, LogOut, Search, Filter, Download, Edit, Settings, Trash2, CheckCircle, Clock, AlertCircle, Image, MessageSquare, Plus, X, Save, Camera, Heart, RefreshCw, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import LegalDisclaimer from '@/components/LegalDisclaimer';
 import EditPriceModal from '@/components/EditPriceModal';
@@ -35,7 +35,46 @@ const AdminDashboard: React.FC = () => {
   const [isEditPriceModalOpen, setIsEditPriceModalOpen] = useState(false);
   const [selectedListing, setSelectedListing] = useState<any>(null);
   const [adminSession, setAdminSession] = useState<any>(null);
+  const [successStories, setSuccessStories] = useState<any[]>([]);
+  const [dealLogs, setDealLogs] = useState<any[]>([]);
+  const [isSuccessStoriesLoading, setIsSuccessStoriesLoading] = useState(false);
+  const [isDealLogsLoading, setIsDealLogsLoading] = useState(false);
+  const [editingStory, setEditingStory] = useState<string | null>(null);
+  const [editingDeal, setEditingDeal] = useState<string | null>(null);
+  const [newCaption, setNewCaption] = useState('');
+  const [newMessage, setNewMessage] = useState('');
+  const [showAddStoryForm, setShowAddStoryForm] = useState(false);
+  const [showAddDealForm, setShowAddDealForm] = useState(false);
+  const [newStoryCaption, setNewStoryCaption] = useState('');
+  const [newDealMessage, setNewDealMessage] = useState('');
+  const [newDealDate, setNewDealDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  // Interests state
+  const [interests, setInterests] = useState<any[]>([]);
+  const [isInterestsLoading, setIsInterestsLoading] = useState(false);
+  
   const navigate = useNavigate();
+
+  // Custom Request interface and state
+  interface CustomRequest {
+    _id: string;
+    title: string;
+    game: string;
+    budget: {
+      min: number;
+      max: number;
+      currency: string;
+    };
+    status: 'pending_payment' | 'processing' | 'fulfilled' | 'cancelled' | 'expired';
+    customRequestId?: string;
+    advancePaid: boolean;
+    userId: string;
+    userEmail: string;
+    createdAt: string;
+    expiresAt?: string;
+  }
+
+  const [customRequests, setCustomRequests] = useState<CustomRequest[]>([]);
   
   // Dummy data
   const [listings, setListings] = useState([
@@ -110,6 +149,60 @@ const AdminDashboard: React.FC = () => {
     { id: '1', name: 'Test User', email: 'test@example.com', message: 'I have a question about account verification', status: 'pending', createdAt: { toDate: () => new Date() } }
   ]);
 
+  // Mock custom requests data
+  useEffect(() => {
+        setCustomRequests([
+          {
+            _id: 'req-1',
+            title: 'Premium Conqueror Account Request',
+            game: 'BGMI',
+            budget: { min: 20000, max: 30000, currency: 'INR' },
+            status: 'processing',
+            customRequestId: 'CR-20251025-1289',
+            advancePaid: true,
+            userId: 'test-user-789',
+            userEmail: 'test789@example.com',
+            createdAt: '2025-10-25T12:07:09.539Z'
+          },
+          {
+            _id: 'req-2',
+            title: 'High-tier Valorant Account',
+            game: 'Valorant',
+            budget: { min: 150, max: 250, currency: 'USD' },
+            status: 'processing',
+            customRequestId: 'CR-20251025-2087',
+            advancePaid: true,
+            userId: 'test-user-dashboard',
+            userEmail: 'dashboard@example.com',
+            createdAt: '2025-10-25T12:13:42.827Z'
+          },
+          {
+            _id: 'req-3',
+            title: 'Fortnite Pro Account',
+            game: 'Fortnite',
+            budget: { min: 100, max: 200, currency: 'USD' },
+            status: 'pending_payment',
+            advancePaid: false,
+            userId: 'test-user-456',
+            userEmail: 'test456@example.com',
+            createdAt: '2025-10-24T15:30:00Z',
+            expiresAt: '2025-10-31T15:30:00Z'
+          },
+          {
+            _id: 'req-4',
+            title: 'Low Budget Request (Invalid)',
+            game: 'BGMI',
+            budget: { min: 3000, max: 4000, currency: 'INR' },
+            status: 'cancelled',
+            advancePaid: false,
+            userId: 'test-user-low',
+            userEmail: 'low@example.com',
+            createdAt: '2025-10-24T10:00:00Z',
+            expiresAt: '2025-10-31T10:00:00Z'
+          }
+        ]);
+  }, []);
+
   // Check admin session on component mount
   useEffect(() => {
     const checkAdminSession = () => {
@@ -149,6 +242,238 @@ const AdminDashboard: React.FC = () => {
       clearInterval(activityInterval);
     };
   }, []);
+
+  // Load success stories, deal logs, and interests on component mount
+  useEffect(() => {
+    fetchSuccessStories();
+    fetchDealLogs();
+    fetchInterests();
+  }, []);
+
+  // Success Stories Management Functions
+  const fetchSuccessStories = async () => {
+    try {
+      setIsSuccessStoriesLoading(true);
+      const response = await fetch('/api/success/stories');
+      if (response.ok) {
+        const data = await response.json();
+        setSuccessStories(data);
+      } else {
+        toast.error('Failed to fetch success stories');
+      }
+    } catch (error) {
+      console.error('Error fetching success stories:', error);
+      toast.error('Failed to fetch success stories');
+    } finally {
+      setIsSuccessStoriesLoading(false);
+    }
+  };
+
+  const fetchDealLogs = async () => {
+    try {
+      setIsDealLogsLoading(true);
+      const response = await fetch('/api/success/deals');
+      if (response.ok) {
+        const data = await response.json();
+        setDealLogs(data);
+      } else {
+        toast.error('Failed to fetch deal logs');
+      }
+    } catch (error) {
+      console.error('Error fetching deal logs:', error);
+      toast.error('Failed to fetch deal logs');
+    } finally {
+      setIsDealLogsLoading(false);
+    }
+  };
+
+  const deleteSuccessStory = async (id: string) => {
+    try {
+      const response = await fetch(`/api/success/stories/${id}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        toast.success('Success story deleted');
+        fetchSuccessStories();
+      } else {
+        toast.error('Failed to delete success story');
+      }
+    } catch (error) {
+      console.error('Error deleting success story:', error);
+      toast.error('Failed to delete success story');
+    }
+  };
+
+  const deleteDealLog = async (id: string) => {
+    try {
+      const response = await fetch(`/api/success/deals/${id}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        toast.success('Deal log deleted');
+        fetchDealLogs();
+      } else {
+        toast.error('Failed to delete deal log');
+      }
+    } catch (error) {
+      console.error('Error deleting deal log:', error);
+      toast.error('Failed to delete deal log');
+    }
+  };
+
+  // Inline editing functions
+  const startEditingStory = (story: any) => {
+    setEditingStory(story._id);
+    setNewCaption(story.caption);
+  };
+
+  const startEditingDeal = (deal: any) => {
+    setEditingDeal(deal._id);
+    setNewMessage(deal.message);
+  };
+
+  const saveStoryEdit = async (id: string) => {
+    try {
+      const response = await fetch(`/api/success/stories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caption: newCaption })
+      });
+      if (response.ok) {
+        toast.success('Story updated');
+        setEditingStory(null);
+        fetchSuccessStories();
+      } else {
+        toast.error('Failed to update story');
+      }
+    } catch (error) {
+      console.error('Error updating story:', error);
+      toast.error('Failed to update story');
+    }
+  };
+
+  const saveDealEdit = async (id: string) => {
+    try {
+      const response = await fetch(`/api/success/deals/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: newMessage })
+      });
+      if (response.ok) {
+        toast.success('Deal updated');
+        setEditingDeal(null);
+        fetchDealLogs();
+      } else {
+        toast.error('Failed to update deal');
+      }
+    } catch (error) {
+      console.error('Error updating deal:', error);
+      toast.error('Failed to update deal');
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingStory(null);
+    setEditingDeal(null);
+    setNewCaption('');
+    setNewMessage('');
+  };
+
+  // Add new entry functions
+  const addNewStory = async () => {
+    if (!newStoryCaption.trim()) {
+      toast.error('Caption is required');
+      return;
+    }
+    // Note: Image upload would need to be handled separately
+    toast.info('Image upload functionality needs to be implemented');
+    setShowAddStoryForm(false);
+    setNewStoryCaption('');
+  };
+
+  const addNewDeal = async () => {
+    if (!newDealMessage.trim()) {
+      toast.error('Message is required');
+      return;
+    }
+    try {
+      const response = await fetch('/api/success/deals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: newDealMessage,
+          date: newDealDate
+        })
+      });
+      if (response.ok) {
+        toast.success('Deal added with auto-generated format');
+        setShowAddDealForm(false);
+        setNewDealMessage('');
+        setNewDealDate(new Date().toISOString().split('T')[0]);
+        fetchDealLogs();
+      } else {
+        toast.error('Failed to add deal');
+      }
+    } catch (error) {
+      console.error('Error adding deal:', error);
+      toast.error('Failed to add deal');
+    }
+  };
+
+  // Interests functions
+  const fetchInterests = async () => {
+    try {
+      setIsInterestsLoading(true);
+      const response = await fetch('/api/interests');
+      if (response.ok) {
+        const data = await response.json();
+        setInterests(data);
+      } else {
+        toast.error('Failed to fetch interests');
+      }
+    } catch (error) {
+      console.error('Error fetching interests:', error);
+      toast.error('Failed to fetch interests');
+    } finally {
+      setIsInterestsLoading(false);
+    }
+  };
+
+  const updateInterestStatus = async (interestId: string, status: string) => {
+    try {
+      const response = await fetch(`/api/interests/${interestId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      if (response.ok) {
+        toast.success('Interest status updated');
+        fetchInterests();
+      } else {
+        toast.error('Failed to update interest status');
+      }
+    } catch (error) {
+      console.error('Error updating interest status:', error);
+      toast.error('Failed to update interest status');
+    }
+  };
+
+  const deleteInterest = async (interestId: string) => {
+    try {
+      const response = await fetch(`/api/interests/${interestId}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        toast.success('Interest deleted');
+        fetchInterests();
+      } else {
+        toast.error('Failed to delete interest');
+      }
+    } catch (error) {
+      console.error('Error deleting interest:', error);
+      toast.error('Failed to delete interest');
+    }
+  };
 
   const handleListingAction = async (id: string, action: 'approve' | 'reject') => {
     // Get admin email for logging
@@ -435,6 +760,50 @@ const AdminDashboard: React.FC = () => {
     navigate('/admin/login');
   };
 
+  const handleMarkFulfilled = async (requestId: string) => {
+    try {
+      setIsLoading(true);
+      
+      // Get admin session data
+      const adminSession = localStorage.getItem('adminSession');
+      const sessionData = adminSession ? JSON.parse(adminSession) : null;
+      
+      // Call backend API to mark as fulfilled
+      const response = await fetch(`http://localhost:3001/api/admin/custom-requests/${requestId}/fulfill`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          adminEmail: sessionData?.email || 'admin@example.com',
+          adminId: sessionData?.adminId || 'admin-123'
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Update the local state
+        setCustomRequests(prev => 
+          prev.map(req => 
+            req._id === requestId 
+              ? { ...req, status: 'fulfilled' as const }
+              : req
+          )
+        );
+        
+        toast.success('Custom request marked as fulfilled. User has been notified.');
+      } else {
+        toast.error(result.message || 'Failed to mark request as fulfilled');
+      }
+    } catch (error) {
+      console.error('Error marking request as fulfilled:', error);
+      toast.error('Failed to mark request as fulfilled');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (!adminSession) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -526,11 +895,14 @@ const AdminDashboard: React.FC = () => {
 
         {/* Main Content */}
         <Tabs defaultValue="listings" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="listings">📋 Listings</TabsTrigger>
             <TabsTrigger value="escrows">💸 Escrows</TabsTrigger>
             <TabsTrigger value="users">👥 Users</TabsTrigger>
             <TabsTrigger value="transactions">🧾 Transactions</TabsTrigger>
+            <TabsTrigger value="custom-requests">🎯 Custom Requests</TabsTrigger>
+            <TabsTrigger value="interests">❤️ Interests</TabsTrigger>
+            <TabsTrigger value="success-stories">⭐ Success Stories</TabsTrigger>
           </TabsList>
 
           {/* Listings Management */}
@@ -814,6 +1186,627 @@ const AdminDashboard: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Custom Requests Management */}
+          <TabsContent value="custom-requests">
+            <Card className="card-glow">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Shield className="w-5 h-5 mr-2" />
+                  Custom Requests Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Request ID</TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Game</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Budget</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customRequests.map((request) => (
+                      <TableRow key={request._id}>
+                        <TableCell className="font-mono text-sm">
+                          {request.customRequestId || 'Pending'}
+                        </TableCell>
+                        <TableCell className="font-medium">{request.title}</TableCell>
+                        <TableCell>{request.game}</TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{request.userEmail}</div>
+                            <div className="text-sm text-muted-foreground">{request.userId}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {request.budget.currency} {request.budget.min.toLocaleString()} - {request.budget.max.toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={
+                            request.status === 'fulfilled' ? 'bg-green-500' :
+                            request.status === 'processing' ? 'bg-yellow-500' :
+                            request.status === 'pending_payment' ? 'bg-orange-500' :
+                            'bg-red-500'
+                          }>
+                            {request.status.replace('_', ' ').toUpperCase()}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{new Date(request.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            {request.status === 'processing' && (
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => handleMarkFulfilled(request._id)}
+                                disabled={isLoading}
+                              >
+                                <CheckCircle className="w-4 h-4 mr-1" />
+                                Mark Fulfilled
+                              </Button>
+                            )}
+                            {request.status === 'fulfilled' && (
+                              <Badge className="bg-green-100 text-green-800">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Completed
+                              </Badge>
+                            )}
+                            {request.status === 'pending_payment' && (
+                              <Badge className="bg-orange-100 text-orange-800">
+                                <Clock className="w-3 h-3 mr-1" />
+                                Awaiting Payment
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                
+                {customRequests.length === 0 && (
+                  <div className="text-center py-8">
+                    <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No Custom Requests</h3>
+                    <p className="text-muted-foreground">
+                      No custom requests have been submitted yet.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Interests Management */}
+          <TabsContent value="interests">
+            <Card className="card-glow">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="flex items-center">
+                    <Heart className="w-5 h-5 mr-2" />
+                    User Interests
+                  </CardTitle>
+                  <Button onClick={fetchInterests} disabled={isInterestsLoading} variant="outline">
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refresh
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isInterestsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                    <p className="text-muted-foreground mt-2">Loading interests...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {interests.length > 0 ? (
+                      interests.map((interest) => (
+                        <Card key={interest._id} className="border border-border hover:border-primary/50 transition-colors">
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge variant={interest.status === 'pending' ? 'destructive' : interest.status === 'contacted' ? 'default' : 'secondary'}>
+                                    {interest.status}
+                                  </Badge>
+                                  <span className="text-sm text-muted-foreground">
+                                    {new Date(interest.timestamp).toLocaleString()}
+                                  </span>
+                                </div>
+                                <h4 className="font-semibold text-lg mb-1">{interest.listingTitle}</h4>
+                                <p className="text-primary font-medium mb-2">{interest.listingPrice}</p>
+                                <div className="text-sm text-muted-foreground">
+                                  <p><strong>User:</strong> {interest.userName}</p>
+                                  <p><strong>Email:</strong> {interest.userEmail}</p>
+                                  <p><strong>Phone:</strong> {interest.userPhone || 'Not provided'}</p>
+                                  <p><strong>Listing ID:</strong> {interest.listingId}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                {interest.status === 'pending' && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => updateInterestStatus(interest._id, 'contacted')}
+                                    className="bg-green-500 hover:bg-green-600"
+                                  >
+                                    <Check className="w-4 h-4 mr-1" />
+                                    Mark Contacted
+                                  </Button>
+                                )}
+                                {interest.status === 'contacted' && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => updateInterestStatus(interest._id, 'closed')}
+                                    variant="outline"
+                                  >
+                                    <X className="w-4 h-4 mr-1" />
+                                    Close
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => deleteInterest(interest._id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <Heart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">No Interests Yet</h3>
+                        <p className="text-muted-foreground">
+                          No users have shown interest in any listings yet.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Success Stories Management */}
+          <TabsContent value="success-stories">
+            <div className="space-y-6">
+              <Tabs defaultValue="screenshots" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="screenshots" className="flex items-center">
+                    <Camera className="w-4 h-4 mr-2" />
+                    📸 Screenshots
+                  </TabsTrigger>
+                  <TabsTrigger value="deals" className="flex items-center">
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    📝 Recent Deals
+                  </TabsTrigger>
+                  <TabsTrigger value="carousel" className="flex items-center">
+                    <Image className="w-4 h-4 mr-2" />
+                    🎠 Homepage Carousel
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Screenshots Subtab */}
+                <TabsContent value="screenshots">
+                  <Card className="card-glow">
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="flex items-center">
+                          <Image className="w-5 h-5 mr-2" />
+                          Success Stories Screenshots
+                        </CardTitle>
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={() => setShowAddStoryForm(!showAddStoryForm)}
+                            className="bg-primary hover:bg-primary/90"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Screenshot
+                          </Button>
+                          <Button onClick={fetchSuccessStories} disabled={isSuccessStoriesLoading} variant="outline">
+                            <Plus className="w-4 h-4 mr-2" />
+                            Refresh
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {/* Add New Story Form */}
+                      {showAddStoryForm && (
+                        <Card className="mb-6 border-primary/20 bg-primary/5">
+                          <CardContent className="p-4">
+                            <h4 className="font-semibold mb-3">Add New Success Story</h4>
+                            <div className="space-y-3">
+                              <div>
+                                <Label htmlFor="story-caption">Caption</Label>
+                                <Input
+                                  id="story-caption"
+                                  value={newStoryCaption}
+                                  onChange={(e) => setNewStoryCaption(e.target.value)}
+                                  placeholder="Enter success story caption..."
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button onClick={addNewStory} size="sm">
+                                  <Save className="w-4 h-4 mr-2" />
+                                  Add Story
+                                </Button>
+                                <Button onClick={() => setShowAddStoryForm(false)} variant="outline" size="sm">
+                                  <X className="w-4 h-4 mr-2" />
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                      
+                      {isSuccessStoriesLoading ? (
+                        <div className="text-center py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                          <p className="text-muted-foreground mt-2">Loading success stories...</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {successStories.map((story) => (
+                            <div key={story._id} className="border border-border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                              <div className="aspect-video bg-muted rounded-lg mb-3 overflow-hidden">
+                                <img 
+                                  src={story.imageUrl} 
+                                  alt={story.caption}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              
+                              {editingStory === story._id ? (
+                                <div className="space-y-2">
+                                  <Input
+                                    value={newCaption}
+                                    onChange={(e) => setNewCaption(e.target.value)}
+                                    placeholder="Edit caption..."
+                                  />
+                                  <div className="flex gap-2">
+                                    <Button onClick={() => saveStoryEdit(story._id)} size="sm">
+                                      <Save className="w-4 h-4 mr-1" />
+                                      Save
+                                    </Button>
+                                    <Button onClick={cancelEdit} variant="outline" size="sm">
+                                      <X className="w-4 h-4 mr-1" />
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{story.caption}</p>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-xs text-muted-foreground">
+                                      {new Date(story.createdAt).toLocaleDateString()}
+                                    </span>
+                                    <div className="flex gap-1">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => startEditingStory(story)}
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => deleteSuccessStory(story._id)}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {successStories.length === 0 && !isSuccessStoriesLoading && (
+                        <div className="text-center py-8">
+                          <Image className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                          <h3 className="text-lg font-semibold mb-2">No Success Stories</h3>
+                          <p className="text-muted-foreground">
+                            No success story screenshots have been uploaded yet.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Recent Deals Subtab */}
+                <TabsContent value="deals">
+                  <Card className="card-glow">
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="flex items-center">
+                          <MessageSquare className="w-5 h-5 mr-2" />
+                          Recent Deals
+                        </CardTitle>
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={() => setShowAddDealForm(!showAddDealForm)}
+                            className="bg-primary hover:bg-primary/90"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Deal
+                          </Button>
+                          <Button onClick={fetchDealLogs} disabled={isDealLogsLoading} variant="outline">
+                            <Plus className="w-4 h-4 mr-2" />
+                            Refresh
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {/* Add New Deal Form */}
+                      {showAddDealForm && (
+                        <Card className="mb-6 border-primary/20 bg-primary/5">
+                          <CardContent className="p-4">
+                            <h4 className="font-semibold mb-3">Add New Deal</h4>
+                            <div className="space-y-3">
+                              <div>
+                                <Label htmlFor="deal-message">Deal Message</Label>
+                                <Input
+                                  id="deal-message"
+                                  value={newDealMessage}
+                                  onChange={(e) => setNewDealMessage(e.target.value)}
+                                  placeholder="Enter deal message (format will be auto-generated)..."
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Format: ✅ {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} — Your message 🎉
+                                </p>
+                              </div>
+                              <div>
+                                <Label htmlFor="deal-date">Date</Label>
+                                <Input
+                                  id="deal-date"
+                                  type="date"
+                                  value={newDealDate}
+                                  onChange={(e) => setNewDealDate(e.target.value)}
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button onClick={addNewDeal} size="sm">
+                                  <Save className="w-4 h-4 mr-2" />
+                                  Add Deal
+                                </Button>
+                                <Button onClick={() => setShowAddDealForm(false)} variant="outline" size="sm">
+                                  <X className="w-4 h-4 mr-2" />
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                      
+                      {isDealLogsLoading ? (
+                        <div className="text-center py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                          <p className="text-muted-foreground mt-2">Loading deal logs...</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {dealLogs.map((deal) => (
+                            <div key={deal._id} className="border border-border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                              {editingDeal === deal._id ? (
+                                <div className="space-y-3">
+                                  <Input
+                                    value={newMessage}
+                                    onChange={(e) => setNewMessage(e.target.value)}
+                                    placeholder="Edit deal message..."
+                                  />
+                                  <div className="flex gap-2">
+                                    <Button onClick={() => saveDealEdit(deal._id)} size="sm">
+                                      <Save className="w-4 h-4 mr-1" />
+                                      Save
+                                    </Button>
+                                    <Button onClick={cancelEdit} variant="outline" size="sm">
+                                      <X className="w-4 h-4 mr-1" />
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <p className="text-sm mb-2">{deal.message}</p>
+                                    <span className="text-xs text-muted-foreground">
+                                      {new Date(deal.date).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <div className="flex gap-1">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => startEditingDeal(deal)}
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => deleteDealLog(deal._id)}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {dealLogs.length === 0 && !isDealLogsLoading && (
+                        <div className="text-center py-8">
+                          <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                          <h3 className="text-lg font-semibold mb-2">No Deal Logs</h3>
+                          <p className="text-muted-foreground">
+                            No recent deals have been logged yet.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Homepage Carousel Subtab */}
+                <TabsContent value="carousel">
+                  <Card className="card-glow">
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="flex items-center">
+                          <Image className="w-5 h-5 mr-2" />
+                          Homepage Carousel Photos
+                        </CardTitle>
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={() => setShowAddStoryForm(!showAddStoryForm)}
+                            className="bg-primary hover:bg-primary/90"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Carousel Photo
+                          </Button>
+                          <Button onClick={fetchSuccessStories} disabled={isSuccessStoriesLoading} variant="outline">
+                            <Plus className="w-4 h-4 mr-2" />
+                            Refresh
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {/* Add New Carousel Photo Form */}
+                      {showAddStoryForm && (
+                        <Card className="mb-6 border-primary/20 bg-primary/5">
+                          <CardContent className="p-4">
+                            <h4 className="font-semibold mb-3">Add New Carousel Photo</h4>
+                            <div className="space-y-3">
+                              <div>
+                                <Label htmlFor="carousel-caption">Caption</Label>
+                                <Input
+                                  id="carousel-caption"
+                                  value={newStoryCaption}
+                                  onChange={(e) => setNewStoryCaption(e.target.value)}
+                                  placeholder="Enter carousel photo caption..."
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  This photo will appear in the homepage continuous loop carousel
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button onClick={addNewStory} size="sm">
+                                  <Save className="w-4 h-4 mr-2" />
+                                  Add Photo
+                                </Button>
+                                <Button onClick={() => setShowAddStoryForm(false)} variant="outline" size="sm">
+                                  <X className="w-4 h-4 mr-2" />
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                      
+                      {isSuccessStoriesLoading ? (
+                        <div className="text-center py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                          <p className="text-muted-foreground mt-2">Loading carousel photos...</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {successStories.map((story) => (
+                            <div key={story._id} className="border border-border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                              <div className="aspect-video bg-muted rounded-lg mb-3 overflow-hidden">
+                                <img 
+                                  src={story.imageUrl} 
+                                  alt={story.caption}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              
+                              {editingStory === story._id ? (
+                                <div className="space-y-2">
+                                  <Input
+                                    value={newCaption}
+                                    onChange={(e) => setNewCaption(e.target.value)}
+                                    placeholder="Edit caption..."
+                                  />
+                                  <div className="flex gap-2">
+                                    <Button onClick={() => saveStoryEdit(story._id)} size="sm">
+                                      <Save className="w-4 h-4 mr-1" />
+                                      Save
+                                    </Button>
+                                    <Button onClick={cancelEdit} variant="outline" size="sm">
+                                      <X className="w-4 h-4 mr-1" />
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{story.caption}</p>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-xs text-muted-foreground">
+                                      {new Date(story.createdAt).toLocaleDateString()}
+                                    </span>
+                                    <div className="flex gap-1">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => startEditingStory(story)}
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => deleteSuccessStory(story._id)}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {successStories.length === 0 && !isSuccessStoriesLoading && (
+                        <div className="text-center py-8">
+                          <Image className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                          <h3 className="text-lg font-semibold mb-2">No Carousel Photos</h3>
+                          <p className="text-muted-foreground">
+                            No carousel photos have been uploaded yet. Add photos to see them in the homepage continuous loop.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
           </TabsContent>
         </Tabs>
 

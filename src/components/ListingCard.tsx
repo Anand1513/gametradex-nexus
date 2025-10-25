@@ -1,14 +1,19 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Shield, TrendingUp, AlertCircle } from "lucide-react";
+import { Shield, TrendingUp, AlertCircle, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import toast from "react-hot-toast";
 
 interface ListingCardProps {
   id: string;
   tier: string;
-  kd: number;
+  kd?: number; // Legacy field
+  collectionLevel?: number;
   level: number;
+  characterId?: string;
   priceRange?: [number, number];
   priceFixed?: number;
   isFixed?: boolean;
@@ -24,7 +29,9 @@ const ListingCard = ({
   id, 
   tier, 
   kd, 
+  collectionLevel,
   level, 
+  characterId,
   priceRange, 
   priceFixed,
   isFixed,
@@ -35,6 +42,73 @@ const ListingCard = ({
   image,
   status
 }: ListingCardProps) => {
+  const [isInterested, setIsInterested] = useState(false);
+  const [interestCount, setInterestCount] = useState(0);
+  const { user, userData } = useAuth();
+
+  // Fetch interest count for this listing
+  useEffect(() => {
+    const fetchInterestCount = async () => {
+      try {
+        const response = await fetch(`/api/interests/listing/${id}`);
+        if (response.ok) {
+          const interests = await response.json();
+          setInterestCount(interests.length);
+          
+          // Check if current user has already shown interest
+          if (userData) {
+            const userInterest = interests.find((interest: any) => interest.userId === userData.uid);
+            if (userInterest) {
+              setIsInterested(true);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching interest count:', error);
+      }
+    };
+    
+    fetchInterestCount();
+  }, [id, userData]);
+
+  const handleInterested = async () => {
+    try {
+      // Check if user is logged in
+      if (!user || !userData) {
+        toast.error('Please login to show interest');
+        return;
+      }
+
+      // Send interest to admin
+      const response = await fetch('/api/interests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          listingId: id,
+          userId: userData.uid,
+          userEmail: userData.email,
+          userName: userData.name || userData.email,
+          userPhone: userData.phone || 'Not provided',
+          listingTitle: `${tier} Account`,
+          listingPrice: isFixed ? `₹${priceFixed?.toLocaleString()}` : `₹${priceRange?.[0].toLocaleString()} - ₹${priceRange?.[1].toLocaleString()}`,
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      if (response.ok) {
+        setIsInterested(true);
+        setInterestCount(prev => prev + 1);
+        toast.success('Interest recorded! We\'ll contact you soon.');
+      } else {
+        toast.error('Failed to record interest. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error recording interest:', error);
+      toast.error('Failed to record interest. Please try again.');
+    }
+  };
   return (
     <Card className="bg-card border-border hover:border-primary/50 transition-all duration-300 hover:shadow-glow overflow-hidden group">
       <div className="relative h-48 overflow-hidden">
@@ -63,10 +137,13 @@ const ListingCard = ({
           <div>
             <h3 className="font-semibold text-lg">{tier} Account</h3>
             <p className="text-sm text-muted-foreground">Level {level}</p>
+            {characterId && (
+              <p className="text-xs text-muted-foreground font-mono">ID: {characterId}</p>
+            )}
           </div>
           <div className="text-right">
-            <p className="text-xs text-muted-foreground">K/D Ratio</p>
-            <p className="text-lg font-bold text-primary">{kd}</p>
+            <p className="text-xs text-muted-foreground">Collection Level</p>
+            <p className="text-lg font-bold text-primary">{collectionLevel || kd || 'N/A'}</p>
           </div>
         </div>
         
@@ -88,14 +165,32 @@ const ListingCard = ({
             </>
           )}
         </div>
+        
+        {/* Interest Count Display */}
+        {interestCount > 0 && (
+          <div className="flex items-center justify-center mb-3">
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Heart className="w-4 h-4" />
+              <span>{interestCount} {interestCount === 1 ? 'person' : 'people'} interested</span>
+            </div>
+          </div>
+        )}
       </CardContent>
       
-      <CardFooter className="pt-0">
-        <Link to={`/listing/${id}`} className="w-full">
+      <CardFooter className="pt-0 flex gap-2">
+        <Link to={`/listing/${id}`} className="flex-1">
           <Button variant="outline" className="w-full hover:bg-primary hover:text-primary-foreground">
             View Details
           </Button>
         </Link>
+        <Button 
+          onClick={handleInterested}
+          disabled={isInterested}
+          variant={isInterested ? "default" : "outline"}
+          className={`px-3 ${isInterested ? "bg-green-500 hover:bg-green-600" : "hover:bg-primary hover:text-primary-foreground"}`}
+        >
+          <Heart className={`w-4 h-4 ${isInterested ? "fill-current" : ""}`} />
+        </Button>
       </CardFooter>
     </Card>
   );

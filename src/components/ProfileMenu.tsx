@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { User, LogOut, Settings, LayoutDashboard } from 'lucide-react';
+import { LogOut, LayoutDashboard } from 'lucide-react';
 
 const ProfileMenu: React.FC = () => {
   const { user, logout } = useAuth();
@@ -44,19 +44,6 @@ const ProfileMenu: React.FC = () => {
     }
   };
 
-  const getDashboardLink = () => {
-    switch (user.role) {
-      case 'admin':
-        return '/admin';
-      case 'seller':
-        return '/sell-account';
-      case 'buyer':
-        return '/browse';
-      default:
-        return '/';
-    }
-  };
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="focus:outline-none">
@@ -71,16 +58,6 @@ const ProfileMenu: React.FC = () => {
             <p className="text-xs text-muted-foreground">{user.email}</p>
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="flex items-center">
-          <User className="mr-2 h-4 w-4" />
-          <span className="capitalize">{user.role}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate(getDashboardLink())} className="cursor-pointer">
-          <Settings className="mr-2 h-4 w-4" />
-          {user.role === 'admin' ? 'Admin Dashboard' : 
-           user.role === 'seller' ? 'Seller Dashboard' : 'My Account'}
-        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/dashboard')} className="cursor-pointer">
           <LayoutDashboard className="mr-2 h-4 w-4" />
           My Dashboard

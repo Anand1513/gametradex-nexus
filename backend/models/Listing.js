@@ -33,6 +33,22 @@ const ListingSchema = new mongoose.Schema({
     required: true,
     min: 1
   },
+  characterId: {
+    type: String,
+    required: true,
+    trim: true,
+    index: true
+  },
+  collectionLevel: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  // Legacy field for backward compatibility
+  kdRatio: {
+    type: Number,
+    min: 0
+  },
   rank: {
     type: String,
     required: true,
@@ -68,6 +84,20 @@ const ListingSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  sellerContacts: {
+    discord: {
+      type: String,
+      trim: true
+    },
+    telegram: {
+      type: String,
+      trim: true
+    },
+    whatsapp: {
+      type: String,
+      trim: true
+    }
+  },
   status: {
     type: String,
     enum: ['draft', 'pending', 'approved', 'rejected', 'sold', 'expired'],
@@ -85,6 +115,15 @@ const ListingSchema = new mongoose.Schema({
         return /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)$/i.test(v);
       },
       message: 'Invalid image URL'
+    }
+  }],
+  videos: [{
+    type: String,
+    validate: {
+      validator: function(v) {
+        return /^https?:\/\/.+\.(mp4|mov|webm)$/i.test(v);
+      },
+      message: 'Invalid video URL'
     }
   }],
   tags: [{
@@ -134,6 +173,8 @@ ListingSchema.index({ sellerId: 1 });
 ListingSchema.index({ status: 1 });
 ListingSchema.index({ game: 1 });
 ListingSchema.index({ platform: 1 });
+ListingSchema.index({ characterId: 1 });
+ListingSchema.index({ collectionLevel: 1 });
 ListingSchema.index({ 'price.min': 1, 'price.max': 1 });
 ListingSchema.index({ createdAt: -1 });
 ListingSchema.index({ title: 'text', description: 'text' });

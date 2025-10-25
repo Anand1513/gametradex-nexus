@@ -13,6 +13,7 @@ const Signup: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
     password: '',
     confirmPassword: '',
     role: 'buyer' as 'buyer' | 'seller'
@@ -45,7 +46,7 @@ const Signup: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await signup(formData.name, formData.email, formData.password, formData.role);
+      await signup(formData.name, formData.email, formData.phone, formData.password, formData.role);
     } catch (error) {
       // Error is handled in the auth context
     } finally {
@@ -96,6 +97,19 @@ const Signup: React.FC = () => {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="Enter your email"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="Enter your phone number"
                   required
                 />
               </div>

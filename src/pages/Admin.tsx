@@ -26,7 +26,7 @@ const Admin: React.FC = () => {
   const [listings, setListings] = useState([
     { 
       id: '1', 
-      title: 'Conqueror Account - 4.2 KD', 
+      title: 'Conqueror Account - 4.2 Collection Level', 
       sellerId: 'seller-123', 
       status: 'open', 
       verified: true, 
@@ -39,7 +39,7 @@ const Admin: React.FC = () => {
     },
     { 
       id: '2', 
-      title: 'Ace Master Account - 3.8 KD', 
+      title: 'Ace Master Account - 3.8 Collection Level', 
       sellerId: 'seller-123', 
       status: 'bidding', 
       verified: false, 
@@ -52,7 +52,7 @@ const Admin: React.FC = () => {
     },
     { 
       id: '3', 
-      title: 'Crown Account - 2.5 KD', 
+      title: 'Crown Account - 2.5 Collection Level', 
       sellerId: 'seller-456', 
       status: 'sold', 
       verified: true, 
@@ -65,7 +65,7 @@ const Admin: React.FC = () => {
     },
     { 
       id: '4', 
-      title: 'Platinum Account - 1.8 KD', 
+      title: 'Platinum Account - 1.8 Collection Level', 
       sellerId: 'seller-789', 
       status: 'open', 
       verified: false, 

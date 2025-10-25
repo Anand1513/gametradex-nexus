@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Upload, AlertTriangle } from "lucide-react";
+import { Shield, Upload, AlertTriangle, X, Image, Video, FileText, Loader2 } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { listingsService } from '@/services/firestore';
 import toast from 'react-hot-toast';
@@ -25,19 +25,88 @@ const Sell = () => {
     priceMax: '',
     description: '',
     game: 'BGMI',
+    characterId: '',
     isFixedPrice: false,
-    contactAdmin: false
+    contactAdmin: false,
+    sellerContacts: {
+      discord: '',
+      telegram: '',
+      whatsapp: ''
+    }
   });
   const [agreed1, setAgreed1] = useState(false);
   const [agreed2, setAgreed2] = useState(false);
   const [agreed3, setAgreed3] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [screenshots, setScreenshots] = useState<File[]>([]);
+  const [videos, setVideos] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const handleSellerContactChange = (field: string, value: string) => {
+    setFormData({
+      ...formData,
+      sellerContacts: {
+        ...formData.sellerContacts,
+        [field]: value
+      }
+    });
+  };
+
+  const handleFileUpload = (files: FileList, type: 'screenshots' | 'videos') => {
+    const fileArray = Array.from(files);
+    
+    // Validate file types
+    if (type === 'screenshots') {
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      const invalidFiles = fileArray.filter(file => !validTypes.includes(file.type));
+      if (invalidFiles.length > 0) {
+        toast.error('Only JPEG, PNG, and WebP images are allowed for screenshots');
+        return;
+      }
+    } else if (type === 'videos') {
+      const validTypes = ['video/mp4', 'video/mov', 'video/webm'];
+      const invalidFiles = fileArray.filter(file => !validTypes.includes(file.type));
+      if (invalidFiles.length > 0) {
+        toast.error('Only MP4, MOV, and WebM videos are allowed');
+        return;
+      }
+      
+      // Check file size (50MB max)
+      const oversizedFiles = fileArray.filter(file => file.size > 50 * 1024 * 1024);
+      if (oversizedFiles.length > 0) {
+        toast.error('Videos must be smaller than 50MB each');
+        return;
+      }
+    }
+    
+    if (type === 'screenshots') {
+      setScreenshots(prev => [...prev, ...fileArray].slice(0, 10)); // Max 10 screenshots
+    } else {
+      setVideos(prev => [...prev, ...fileArray].slice(0, 5)); // Max 5 videos
+    }
+  };
+
+  const removeFile = (index: number, type: 'screenshots' | 'videos') => {
+    if (type === 'screenshots') {
+      setScreenshots(prev => prev.filter((_, i) => i !== index));
+    } else {
+      setVideos(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,39 +122,95 @@ const Sell = () => {
       return;
     }
 
+    // Validate required fields
+    if (!formData.characterId.trim()) {
+      toast.error("Character ID is required");
+      return;
+    }
+
+    if (!formData.kd.trim()) {
+      toast.error("Collection Level is required");
+      return;
+    }
+
+    if (screenshots.length === 0) {
+      toast.error("At least one screenshot is required");
+      return;
+    }
+
     setIsLoading(true);
+    setUploadProgress(0);
 
     try {
-      // Prepare listing data based on price option selected
-      const listingData: any = {
-        title: formData.title,
-        tier: formData.tier,
-        kd: parseFloat(formData.kd),
-        level: parseInt(formData.level),
-        sellerId: user.uid,
-        verified: false,
-        status: 'open',
-        description: formData.description,
-        game: formData.game,
-        pendingPrice: formData.contactAdmin,
-        isFixed: formData.isFixedPrice,
-        negotiable: !formData.isFixedPrice && !formData.contactAdmin
-      };
-
-      // Add price fields only if not contacting admin
-      if (!formData.contactAdmin) {
-        if (formData.isFixedPrice) {
-          // For fixed price, set both min and max to the same value
-          listingData.priceMin = parseInt(formData.priceMin);
-          listingData.priceMax = parseInt(formData.priceMin);
-        } else {
-          // For price range
-          listingData.priceMin = parseInt(formData.priceMin);
-          listingData.priceMax = parseInt(formData.priceMax);
-        }
+      // Create FormData for multipart/form-data submission
+      const formDataToSend = new FormData();
+      
+      // Add text fields
+      formDataToSend.append('title', formData.title);
+      formDataToSend.append('game', formData.game);
+      formDataToSend.append('characterId', formData.characterId);
+      formDataToSend.append('collectionLevel', formData.kd);
+      formDataToSend.append('level', formData.level);
+      formDataToSend.append('description', formData.description);
+      formDataToSend.append('tier', formData.tier);
+      formDataToSend.append('sellerId', user.uid);
+      
+      // Add seller contacts
+      if (formData.sellerContacts.discord) {
+        formDataToSend.append('sellerContacts[discord]', formData.sellerContacts.discord);
+      }
+      if (formData.sellerContacts.telegram) {
+        formDataToSend.append('sellerContacts[telegram]', formData.sellerContacts.telegram);
+      }
+      if (formData.sellerContacts.whatsapp) {
+        formDataToSend.append('sellerContacts[whatsapp]', formData.sellerContacts.whatsapp);
       }
       
-      await listingsService.create(listingData);
+      // Add price fields
+      if (!formData.contactAdmin) {
+        if (formData.isFixedPrice) {
+          formDataToSend.append('priceMin', formData.priceMin);
+          formDataToSend.append('priceMax', formData.priceMin);
+        } else {
+          formDataToSend.append('priceMin', formData.priceMin);
+          formDataToSend.append('priceMax', formData.priceMax);
+        }
+      }
+
+      // Add files
+      screenshots.forEach((file, index) => {
+        formDataToSend.append('screenshots', file);
+      });
+      
+      videos.forEach((file, index) => {
+        formDataToSend.append('videos', file);
+      });
+
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
+      // Submit to API
+      const response = await fetch('/api/listings', {
+        method: 'POST',
+        body: formDataToSend,
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (!response.ok) {
+        throw new Error('Failed to submit listing');
+      }
+
+      const result = await response.json();
       
       const successMessage = formData.contactAdmin 
         ? "Listing submitted! Our admin team will contact you about pricing."
@@ -103,13 +228,23 @@ const Sell = () => {
         priceMax: '',
         description: '',
         game: 'BGMI',
+        characterId: '',
         isFixedPrice: false,
-        contactAdmin: false
+        contactAdmin: false,
+        sellerContacts: {
+          discord: '',
+          telegram: '',
+          whatsapp: ''
+        }
       });
+      setScreenshots([]);
+      setVideos([]);
       setAgreed1(false);
       setAgreed2(false);
       setAgreed3(false);
+      setUploadProgress(0);
     } catch (error) {
+      console.error('Submission error:', error);
       toast.error("Failed to submit listing. Please try again.");
     } finally {
       setIsLoading(false);
@@ -162,7 +297,7 @@ const Sell = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="tier">Current Tier *</Label>
                   <Select name="tier" value={formData.tier} onValueChange={(value) => setFormData({...formData, tier: value})} required>
@@ -182,20 +317,6 @@ const Sell = () => {
                 </div>
 
                 <div>
-                  <Label htmlFor="kd">K/D Ratio *</Label>
-                  <Input 
-                    id="kd" 
-                    name="kd"
-                    value={formData.kd}
-                    onChange={handleChange}
-                    type="number" 
-                    step="0.1" 
-                    placeholder="e.g., 3.5" 
-                    required 
-                  />
-                </div>
-
-                <div>
                   <Label htmlFor="level">Account Level *</Label>
                   <Input 
                     id="level" 
@@ -206,6 +327,40 @@ const Sell = () => {
                     placeholder="e.g., 65" 
                     required 
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="characterId">Character ID *</Label>
+                  <Input 
+                    id="characterId" 
+                    name="characterId"
+                    value={formData.characterId}
+                    onChange={handleChange}
+                    placeholder="e.g., 1234567890" 
+                    required 
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Your in-game character ID for verification
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="kd">Collection Level *</Label>
+                  <Input 
+                    id="kd" 
+                    name="kd"
+                    value={formData.kd}
+                    onChange={handleChange}
+                    type="number" 
+                    step="0.1" 
+                    placeholder="e.g., 3.5" 
+                    required 
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Your collection level or overall rating
+                  </p>
                 </div>
               </div>
 
@@ -323,20 +478,170 @@ const Sell = () => {
                 />
               </div>
 
+              {/* Seller Contact Information */}
+              <div>
+                <Label className="text-base font-semibold">Contact Information (Optional)</Label>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Provide your contact details for potential buyers to reach you directly
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="discord">Discord Username</Label>
+                    <Input 
+                      id="discord" 
+                      name="discord"
+                      value={formData.sellerContacts.discord}
+                      onChange={(e) => handleSellerContactChange('discord', e.target.value)}
+                      placeholder="e.g., username#1234" 
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="telegram">Telegram Username</Label>
+                    <Input 
+                      id="telegram" 
+                      name="telegram"
+                      value={formData.sellerContacts.telegram}
+                      onChange={(e) => handleSellerContactChange('telegram', e.target.value)}
+                      placeholder="e.g., @username" 
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="whatsapp">WhatsApp Number</Label>
+                    <Input 
+                      id="whatsapp" 
+                      name="whatsapp"
+                      value={formData.sellerContacts.whatsapp}
+                      onChange={(e) => handleSellerContactChange('whatsapp', e.target.value)}
+                      placeholder="7703976645" 
+                    />
+                  </div>
+                </div>
+                
+                <p className="text-xs text-muted-foreground mt-2">
+                  These details will be visible to verified buyers after purchase
+                </p>
+              </div>
+
+              {/* Screenshots Upload */}
               <div>
                 <Label htmlFor="screenshots">Upload Screenshots *</Label>
-                <div className="mt-2 border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
+                <div 
+                  className="mt-2 border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                  onClick={() => document.getElementById('screenshots-input')?.click()}
+                >
                   <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
                   <p className="text-sm text-muted-foreground mb-1">
                     Click to upload or drag and drop
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Upload screenshots of stats, inventory, and tier (Max 5 images)
+                    Upload screenshots of stats, inventory, and tier (Max 10 images)
                   </p>
                 </div>
+                <input
+                  id="screenshots-input"
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={(e) => e.target.files && handleFileUpload(e.target.files, 'screenshots')}
+                  className="hidden"
+                />
+                
+                {/* Screenshot Previews */}
+                {screenshots.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm font-medium mb-2">Screenshots ({screenshots.length}/10)</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {screenshots.map((file, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-square rounded-lg overflow-hidden border border-border bg-muted">
+                            <img
+                              src={URL.createObjectURL(file)}
+                              alt={`Screenshot ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFile(index, 'screenshots')}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                          <p className="text-xs text-muted-foreground mt-1 truncate">
+                            {file.name}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 <p className="text-xs text-muted-foreground mt-2">
                   All uploads will be watermarked for security
                 </p>
+              </div>
+
+              {/* Videos Upload */}
+              <div>
+                <Label htmlFor="videos">Upload Videos (Optional)</Label>
+                <div 
+                  className="mt-2 border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                  onClick={() => document.getElementById('videos-input')?.click()}
+                >
+                  <Video className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Click to upload or drag and drop
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Upload gameplay videos (Max 5 videos, 50MB each)
+                  </p>
+                </div>
+                <input
+                  id="videos-input"
+                  type="file"
+                  multiple
+                  accept="video/mp4,video/mov,video/webm"
+                  onChange={(e) => e.target.files && handleFileUpload(e.target.files, 'videos')}
+                  className="hidden"
+                />
+                
+                {/* Video Previews */}
+                {videos.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm font-medium mb-2">Videos ({videos.length}/5)</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {videos.map((file, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-video rounded-lg overflow-hidden border border-border bg-muted">
+                            <video
+                              src={URL.createObjectURL(file)}
+                              className="w-full h-full object-cover"
+                              controls
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFile(index, 'videos')}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                          <div className="mt-1">
+                            <p className="text-xs text-muted-foreground truncate">
+                              {file.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatFileSize(file.size)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Legal Agreements */}
@@ -379,8 +684,30 @@ const Sell = () => {
                 className="w-full btn-primary"
                 disabled={!agreed1 || !agreed2 || !agreed3 || isLoading}
               >
-                {isLoading ? 'Submitting...' : 'Submit for Verification'}
+                {isLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Uploading... {uploadProgress}%</span>
+                  </div>
+                ) : (
+                  'Submit for Verification'
+                )}
               </Button>
+              
+              {/* Upload Progress Bar */}
+              {isLoading && uploadProgress > 0 && (
+                <div className="mt-4">
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div 
+                      className="bg-primary h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 text-center">
+                    {uploadProgress < 100 ? 'Uploading files...' : 'Processing...'}
+                  </p>
+                </div>
+              )}
             </form>
           </CardContent>
         </Card>

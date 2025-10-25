@@ -18,7 +18,7 @@ const AdminLogin: React.FC = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, refreshAuth } = useAuth();
 
   // Admin credentials and key (in production, these should be in environment variables)
   const ADMIN_CREDENTIALS = {
@@ -61,10 +61,13 @@ const AdminLogin: React.FC = () => {
         console.log('Admin session in localStorage:', localStorage.getItem('adminSession'));
         
         // Start admin session
-        const sessionId = await startAdminSession('key', 'admin@example.com');
+        const sessionId = await startAdminSession({ id: 'admin-key-user', email: 'admin@example.com' });
         
         // Log admin login action
-        await logAdminLogin('key', 'admin@example.com');
+        await logAdminLogin();
+        
+        // Refresh auth state to update context
+        refreshAuth();
         
         toast.success('Admin access granted!');
         navigate('/admin/dashboard');
@@ -113,10 +116,13 @@ const AdminLogin: React.FC = () => {
         console.log('Admin session in localStorage:', localStorage.getItem('adminSession'));
         
         // Start admin session
-        const sessionId = await startAdminSession('credentials', email);
+        const sessionId = await startAdminSession({ id: 'admin-credential-user', email: email });
         
         // Log admin login action
-        await logAdminLogin('credentials', email);
+        await logAdminLogin();
+        
+        // Refresh auth state to update context
+        refreshAuth();
         
         toast.success('Admin access granted!');
         navigate('/admin/dashboard');

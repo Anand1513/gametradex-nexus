@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Shield, Zap, HeadphonesIcon, CheckCircle2 } from "lucide-react";
+import { Shield, Zap, HeadphonesIcon, CheckCircle2, Award } from "lucide-react";
 import ListingCard from "@/components/ListingCard";
 import VerifiedTag from "@/components/VerifiedTag";
 import LegalDisclaimer from "@/components/LegalDisclaimer";
+import SuccessStoriesCarousel from "@/components/SuccessStoriesCarousel";
 import heroImage from "@/assets/hero-bg.jpg";
 import { mockListings } from "@/data/mockData";
 
@@ -32,6 +33,7 @@ const Home = () => {
     { icon: Shield, title: "Verified Sellers", description: "All accounts verified by our team" },
     { icon: CheckCircle2, title: "Escrow Protection", description: "Secure payment until verification" },
     { icon: HeadphonesIcon, title: "24/7 Support", description: "Fast support via Telegram & Discord" },
+    { icon: Award, title: "5+ Years of Experience", description: "Trusted marketplace built by gaming experts since 2019" },
   ];
 
   return (
@@ -122,8 +124,11 @@ const Home = () => {
                   </div>
                 </div>
                 <div className="space-y-2 text-sm text-muted-foreground">
-                  <p>{listing.game} • {listing.tier} • KD: {listing.kd}</p>
+                  <p>{listing.game} • {listing.tier} • Collection Level: {listing.collectionLevel || listing.kd}</p>
                   <p>Level: {listing.level}</p>
+                  {listing.characterId && (
+                    <p className="text-xs font-mono">ID: {listing.characterId}</p>
+                  )}
                   <p className="font-semibold text-primary">
                     ₹{listing.priceRange[0].toLocaleString()} – ₹{listing.priceRange[1].toLocaleString()}
                   </p>
@@ -146,7 +151,7 @@ const Home = () => {
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Why Choose GameTradeX</h2>
             <p className="text-muted-foreground text-lg">Your trusted partner for secure gaming account exchanges</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
             {benefits.map((benefit, index) => (
               <div
                 key={index}
@@ -160,6 +165,9 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* Success Stories Carousel */}
+      <SuccessStoriesCarousel />
 
       {/* CTA Section */}
       <section className="py-20">

@@ -23,6 +23,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static('uploads'));
+
 // MongoDB connection
 const connectDB = async () => {
   try {
@@ -346,6 +349,14 @@ app.use('/api/admin', adminRoutes);
 
 // Use notification routes
 app.use('/api/notifications', notificationRoutes);
+
+// Use success stories routes
+const successStoriesRoutes = require('./api/routes/successStories.js');
+app.use('/api/success', successStoriesRoutes);
+
+// Use interests routes
+const interestsRoutes = require('./api/routes/interests.js');
+app.use('/api/interests', interestsRoutes);
 
 // Error handling middleware
 app.use((error, req, res, next) => {

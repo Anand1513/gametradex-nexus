@@ -21,6 +21,11 @@ export interface IListing extends Document {
   };
   sellerId: string;
   sellerEmail: string;
+  sellerContacts?: {
+    discord?: string;
+    telegram?: string;
+    whatsapp?: string;
+  };
   status: 'draft' | 'pending' | 'approved' | 'rejected' | 'sold' | 'expired';
   isVerified: boolean;
   images: string[];
