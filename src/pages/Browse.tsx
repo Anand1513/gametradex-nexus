@@ -7,6 +7,7 @@ import ListingCard from "@/components/ListingCard";
 import VerifiedTag from "@/components/VerifiedTag";
 import LegalDisclaimer from "@/components/LegalDisclaimer";
 import BuyNowModal from "@/components/BuyNowModal";
+import ContactSellerModal from "@/components/ContactSellerModal";
 import { Search, ShoppingCart, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { mockListings } from "@/data/mockData";
@@ -20,6 +21,7 @@ const Browse = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedListing, setSelectedListing] = useState<any>(null);
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const navigate = useNavigate();
 
   const [filteredListings, setFilteredListings] = useState(mockListings);
@@ -47,8 +49,8 @@ const Browse = () => {
       filtered.sort((a, b) => a.priceRange[0] - b.priceRange[0]);
     } else if (sortBy === "price-high") {
       filtered.sort((a, b) => b.priceRange[1] - a.priceRange[1]);
-    } else if (sortBy === "kd-high") {
-      filtered.sort((a, b) => b.kd - a.kd);
+    } else if (sortBy === "collection-high") {
+      filtered.sort((a, b) => (b.collectionLevel || b.kd) - (a.collectionLevel || a.kd));
     } else if (sortBy === "level-high") {
       filtered.sort((a, b) => b.level - a.level);
     }
@@ -57,8 +59,8 @@ const Browse = () => {
   }, [tier, platform, priceRange, searchQuery, sortBy]);
 
   const handleBuyNow = (listing: any) => {
-    toast.error('Please log in to buy accounts');
-    return;
+    setSelectedListing(listing);
+    setIsContactModalOpen(true);
   };
 
   const handlePlaceBid = (listing: any) => {
@@ -154,7 +156,7 @@ const Browse = () => {
                   <SelectItem value="recent">Most Recent</SelectItem>
                   <SelectItem value="price-low">Price: Low to High</SelectItem>
                   <SelectItem value="price-high">Price: High to Low</SelectItem>
-                  <SelectItem value="kd-high">K/D: High to Low</SelectItem>
+                  <SelectItem value="collection-high">Collection Level: High to Low</SelectItem>
                   <SelectItem value="level-high">Level: High to Low</SelectItem>
                 </SelectContent>
               </Select>
@@ -196,8 +198,11 @@ const Browse = () => {
                 </div>
               </div>
               <div className="space-y-2 text-sm text-muted-foreground mb-4">
-                <p>{listing.game} • {listing.tier} • KD: {listing.kd}</p>
+                <p>{listing.game} • {listing.tier} • Collection Level: {listing.collectionLevel || listing.kd}</p>
                 <p>Level: {listing.level}</p>
+                {listing.characterId && (
+                  <p className="text-xs font-mono">ID: {listing.characterId}</p>
+                )}
                 <p className="font-semibold text-primary">
                   {listing.pendingPrice ? (
                     <span className="text-amber-500">Pending Price</span>
@@ -254,6 +259,15 @@ const Browse = () => {
             isOpen={isBuyModalOpen}
             onClose={() => setIsBuyModalOpen(false)}
             onSubmit={handleBuySubmit}
+            listing={selectedListing}
+          />
+        )}
+
+        {/* Contact Seller Modal */}
+        {selectedListing && (
+          <ContactSellerModal
+            isOpen={isContactModalOpen}
+            onClose={() => setIsContactModalOpen(false)}
             listing={selectedListing}
           />
         )}

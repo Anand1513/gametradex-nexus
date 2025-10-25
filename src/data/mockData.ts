@@ -5,6 +5,8 @@ export interface Listing {
   tier: string;
   kd: number;
   level: number;
+  characterId?: string;
+  collectionLevel?: number;
   priceRange: [number, number];
   priceFixed?: number;
   isFixed?: boolean;
@@ -12,6 +14,7 @@ export interface Listing {
   pendingPrice?: boolean;
   description: string;
   images: string[];
+  videos?: string[];
   verified: boolean;
   bidding: boolean;
   currentBid?: number;
@@ -19,6 +22,11 @@ export interface Listing {
   expiresIn?: string;
   bids?: Bid[];
   status?: string;
+  sellerContacts?: {
+    discord?: string;
+    telegram?: string;
+    whatsapp?: string;
+  };
 }
 
 export interface Bid {
@@ -38,18 +46,26 @@ export const mockListings: Listing[] = [
     tier: 'Conqueror',
     kd: 4.2,
     level: 75,
+    characterId: '1234567890',
+    collectionLevel: 4.2,
     priceRange: [20000, 30000],
     isFixed: false,
     negotiable: true,
     pendingPrice: false,
     description: 'High-tier Conqueror account with excellent stats. Multiple legendary skins and achievements.',
     images: ['/placeholder.svg', '/placeholder.svg'],
+    videos: ['/placeholder.svg', '/placeholder.svg'],
     verified: true,
     bidding: true,
     currentBid: 25000,
     baseRange: [20000, 30000],
     expiresIn: '48h',
     status: 'open',
+    sellerContacts: {
+      discord: 'gamerpro#1234',
+      telegram: 'gamerpro_bgmi',
+      whatsapp: '919876543210'
+    },
     bids: [
       { id: '1', user: 'alex', amount: 24500, status: 'outbid', timestamp: '2h ago', message: 'Great account!' },
       { id: '2', user: 'sam', amount: 25000, status: 'highest', timestamp: '1h ago', message: 'Interested in this account' },
@@ -71,7 +87,11 @@ export const mockListings: Listing[] = [
     images: ['/placeholder.svg'],
     verified: true,
     bidding: false,
-    status: 'open'
+    status: 'open',
+    sellerContacts: {
+      discord: 'aceplayer#5678',
+      telegram: 'aceplayer_bgmi'
+    }
   },
   {
     id: '3',
@@ -90,6 +110,9 @@ export const mockListings: Listing[] = [
     baseRange: [8000, 12000],
     expiresIn: '24h',
     status: 'pending',
+    sellerContacts: {
+      whatsapp: '919876543211'
+    },
     bids: [
       { id: '4', user: 'mike', amount: 9500, status: 'highest', timestamp: '30m ago' },
       { id: '5', user: 'sarah', amount: 9000, status: 'outbid', timestamp: '1h ago' }
@@ -111,7 +134,12 @@ export const mockListings: Listing[] = [
     images: ['/placeholder.svg'],
     verified: true,
     bidding: false,
-    status: 'open'
+    status: 'open',
+    sellerContacts: {
+      discord: 'diamondgamer#9999',
+      telegram: 'diamondgamer_bgmi',
+      whatsapp: '919876543212'
+    }
   },
   {
     id: '5',
@@ -126,7 +154,10 @@ export const mockListings: Listing[] = [
     images: ['/placeholder.svg'],
     verified: false,
     bidding: false,
-    status: 'pending'
+    status: 'pending',
+    sellerContacts: {
+      telegram: 'platinumplayer_bgmi'
+    }
   }
 ];
 

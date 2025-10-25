@@ -11,11 +11,12 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Shield, ArrowLeft, TrendingUp, AlertCircle, ShoppingCart, Clock } from "lucide-react";
+import { Shield, ArrowLeft, TrendingUp, AlertCircle, ShoppingCart, Clock, Play, Image, Video } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import BidCard from "@/components/BidCard";
 import BidModal from "@/components/BidModal";
 import BuyNowModal from "@/components/BuyNowModal";
+import ContactSellerModal from "@/components/ContactSellerModal";
 import LegalDisclaimer from "@/components/LegalDisclaimer";
 import { mockListings } from "@/data/mockData";
 import toast from "react-hot-toast";
@@ -25,6 +26,8 @@ const ListingDetail = () => {
   const navigate = useNavigate();
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [loadedVideos, setLoadedVideos] = useState<Set<number>>(new Set());
 
   const listing = mockListings.find((l) => l.id === id);
 
@@ -34,8 +37,7 @@ const ListingDetail = () => {
   };
 
   const handleBuyNow = () => {
-    toast.error('Please log in to buy accounts');
-    return;
+    setIsContactModalOpen(true);
   };
 
   const handleBidSubmit = (bidData: { amount: number; message: string }) => {
@@ -46,6 +48,16 @@ const ListingDetail = () => {
   const handleBuySubmit = (buyData: { amount: number; paymentMethod: string }) => {
     console.log('Buy now:', buyData);
     // Here you would typically create an escrow record
+  };
+
+  const handleVideoLoad = (index: number) => {
+    setLoadedVideos(prev => new Set([...prev, index]));
+  };
+
+  const generateVideoThumbnail = (videoUrl: string) => {
+    // In a real app, you'd generate thumbnails from the video
+    // For now, we'll use a placeholder
+    return '/placeholder.svg';
   };
 
   if (!listing) {
@@ -154,24 +166,79 @@ const ListingDetail = () => {
               </div>
             </div>
 
-            {/* Screenshot Gallery */}
+            {/* Media Gallery */}
             <Card className="bg-card border-border">
               <CardContent className="p-6">
-                <h2 className="text-xl font-semibold mb-4">Screenshots</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {listing.images.map((image, index) => (
-                    <div
-                      key={index}
-                      className="relative h-64 overflow-hidden rounded-lg border border-border hover:border-primary/50 transition-all group"
-                    >
-                      <img
-                        src={image}
-                        alt={`Screenshot ${index + 1}`}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
+                <h2 className="text-xl font-semibold mb-4">Media Gallery</h2>
+                
+                {/* Images Section */}
+                {listing.images && listing.images.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-medium mb-3 flex items-center">
+                      <Image className="w-5 h-5 mr-2" />
+                      Screenshots ({listing.images.length})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {listing.images.map((image, index) => (
+                        <div
+                          key={`image-${index}`}
+                          className="relative aspect-video overflow-hidden rounded-lg border border-border hover:border-primary/50 transition-all group"
+                        >
+                          <img
+                            src={image}
+                            alt={`Screenshot ${index + 1}`}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            loading="lazy"
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
+
+                {/* Videos Section */}
+                {listing.videos && listing.videos.length > 0 ? (
+                  <div>
+                    <h3 className="text-lg font-medium mb-3 flex items-center">
+                      <Video className="w-5 h-5 mr-2" />
+                      Gameplay Videos ({listing.videos.length})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {listing.videos.map((video, index) => (
+                        <div
+                          key={`video-${index}`}
+                          className="relative aspect-video overflow-hidden rounded-lg border border-border hover:border-primary/50 transition-all group"
+                        >
+                          {loadedVideos.has(index) ? (
+                            <video
+                              src={video}
+                              controls
+                              className="w-full h-full object-cover"
+                              preload="metadata"
+                            />
+                          ) : (
+                            <div
+                              className="w-full h-full bg-muted flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors"
+                              onClick={() => handleVideoLoad(index)}
+                            >
+                              <div className="text-center">
+                                <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                                  <Play className="w-8 h-8 text-primary" />
+                                </div>
+                                <p className="text-sm text-muted-foreground">Click to load video</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Video className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No gameplay videos available</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -185,8 +252,8 @@ const ListingDetail = () => {
                     <p className="text-2xl font-bold text-primary">{listing.level}</p>
                   </div>
                   <div className="text-center p-4 bg-background rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">K/D Ratio</p>
-                    <p className="text-2xl font-bold text-primary">{listing.kd}</p>
+                    <p className="text-sm text-muted-foreground mb-1">Collection Level</p>
+                    <p className="text-2xl font-bold text-primary">{listing.collectionLevel || listing.kd}</p>
                   </div>
                   <div className="text-center p-4 bg-background rounded-lg">
                     <p className="text-sm text-muted-foreground mb-1">Tier</p>
@@ -267,13 +334,19 @@ const ListingDetail = () => {
                     <span className="font-semibold">{listing.tier}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">K/D Ratio:</span>
-                    <span className="font-semibold">{listing.kd}</span>
+                    <span className="text-muted-foreground">Collection Level:</span>
+                    <span className="font-semibold">{listing.collectionLevel || listing.kd}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Level:</span>
                     <span className="font-semibold">{listing.level}</span>
                   </div>
+                  {listing.characterId && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Character ID:</span>
+                      <span className="font-semibold font-mono text-sm">{listing.characterId}</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -329,6 +402,13 @@ const ListingDetail = () => {
           isOpen={isBuyModalOpen}
           onClose={() => setIsBuyModalOpen(false)}
           onSubmit={handleBuySubmit}
+          listing={listing}
+        />
+
+        {/* Contact Seller Modal */}
+        <ContactSellerModal
+          isOpen={isContactModalOpen}
+          onClose={() => setIsContactModalOpen(false)}
           listing={listing}
         />
       </div>
