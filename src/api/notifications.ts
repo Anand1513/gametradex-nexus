@@ -97,7 +97,11 @@ export const getNotifications = async (filters: NotificationFilters = {}): Promi
     }
     
     // Sort by creation date (newest first)
-    filteredNotifications.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    filteredNotifications.sort((a, b) => {
+      const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+      const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+      return dateB.getTime() - dateA.getTime();
+    });
     
     return filteredNotifications;
     

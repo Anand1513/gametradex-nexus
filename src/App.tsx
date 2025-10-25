@@ -7,6 +7,7 @@ import { Toaster as HotToaster } from "react-hot-toast";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import { AuthProvider } from "./contexts/AuthContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import Home from "./pages/Home";
@@ -22,6 +23,7 @@ import Admin from "./pages/Admin";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminActivity from "./pages/AdminActivity";
+import Dashboard from "./pages/Dashboard";
 import SellerDashboard from "./pages/SellerDashboard";
 import TermsOfService from "./pages/legal/TermsOfService";
 import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
@@ -35,10 +37,11 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <HotToaster position="top-right" />
-        <BrowserRouter>
+        <NotificationProvider>
+          <Toaster />
+          <Sonner />
+          <HotToaster position="top-right" />
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <div className="flex flex-col min-h-screen">
             <Navbar />
             <main className="flex-1 pt-16">
@@ -80,6 +83,11 @@ const App = () => (
                     <AdminActivity />
                   </AdminProtectedRoute>
                 } />
+                <Route path="/dashboard" element={
+                  <ProtectedRoute requireAuth>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } />
                 <Route path="/sell-account" element={
                   <ProtectedRoute requireAuth requireSeller>
                     <SellerDashboard />
@@ -95,6 +103,7 @@ const App = () => (
             <Footer />
           </div>
         </BrowserRouter>
+        </NotificationProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
